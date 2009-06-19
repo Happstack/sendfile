@@ -1,4 +1,4 @@
-﻿name:           sendfile
+name:           sendfile
 version:        0.1
 synopsis:       A portable sendfile library
 description:    A library which exposes for zero-copy sendfile functionality in a portable way.
