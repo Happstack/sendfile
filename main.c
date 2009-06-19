@@ -13,8 +13,6 @@ SOCKET createListenerSocket() {
     service.sin_port = htons(8000);
     
     assert(0 == bind(sock, (SOCKADDR*) &service, sizeof(service)));
-    //bind(sock, (SOCKADDR*) &service, sizeof(service));
-    //printf("%d", WSAGetLastError());
     assert(0 == listen(sock, SOMAXCONN));
     return sock;
 }
@@ -41,8 +39,7 @@ int main() {
     SOCKET listenSock = createListenerSocket();
     SOCKET clientSock = acceptClientSocket(listenSock);
     
-    HANDLE fd = CreateFile("main.c", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-      FILE_FLAG_OVERLAPPED | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    HANDLE fd = CreateFile("main.c", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     assert(fd != INVALID_HANDLE_VALUE);
     
     send(clientSock, "hello, world!\n", 14, 0);
