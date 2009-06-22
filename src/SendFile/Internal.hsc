@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
-module SendFile 
-    ( sendFile
-    , sendFileMode
+module SendFile.Internal (
+    portableSendFile,
+    sendFile,
+    sendFileMode
     ) where
 
 import Prelude hiding (readFile)
@@ -9,6 +10,7 @@ import System.IO (Handle(..))
 import System.IO.Strict
 
 #if defined(PORTABLE_SENDFILE)
+sendFileMode :: String
 sendFileMode = "PORTABLE"
 
 sendFile :: Handle -> FilePath -> IO Bool
@@ -20,6 +22,7 @@ import Foreign.C
 import GHC.IOBase
 import GHC.Handle
 
+sendFileMode :: String
 sendFileMode = "WIN32"
 
 sendFile :: Handle -> FilePath -> IO Bool
@@ -32,6 +35,7 @@ foreign import ccall unsafe
     c_sendfile :: CInt -> CString -> IO Bool
     
 #  else
+sendFileMode :: String
 sendFileMode = "PORTABLE"
 
 sendFile :: Handle -> FilePath -> IO Bool
