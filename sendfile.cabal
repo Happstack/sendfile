@@ -10,14 +10,28 @@ category:      Network
 build-type:    Simple
 cabal-version: >= 1.6
 
+flag portable
+    description: Explicitly enable portable sendfile support (implemented in Haskell)
+    default:     False
+
 library
     hs-source-dirs:  src
-    c-sources:       csrc/sendfile.c
-    
+
     exposed-modules: SendFile
     
     build-depends:   base >= 3 && < 5,
-                     network
+                     network >= 2 && < 3,
+                     strict-io >= 0.1 && < 1
+    
+    if flag(portable)
+      cc-options: -DPORTABLE_SENDFILE
+    else
+      if os(windows)
+        cc-options: -DWIN32_SENDFILE
+        c-sources: csrc/sendfile_win32.c
+        extra-libraries: mswsock
+      else
+        cc-options: -DPORTABLE_SENDFILE
 
 source-repository head
     type:     darcs
