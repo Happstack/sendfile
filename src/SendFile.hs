@@ -6,12 +6,12 @@ module SendFile (
 import qualified SendFile.Internal
 import System.IO (Handle(..))
 
--- | A cross-platform wrapper for sendfile -- this implements an available operating-system call if supported, otherwise it falls back to a portable haskell implementation.
-sendFile :: Handle   -- ^ The peer Handle to write the file to
-         -> FilePath -- ^ The path where the file resides
-         -> IO Bool  -- ^ Was the transmission successful?
+-- | A cross-platform wrapper for sendfile -- this implements an available operating-system call if supported, otherwise it falls back to a portable haskell implementation. It takes a Handle which it will first flush before handing it to the operating system to perform the transmission.
+sendFile :: Handle   -- ^ The output Handle
+         -> FilePath -- ^ The path where the input file resides
+         -> IO ()  -- ^ Whether or not the transmission was successful
 sendFile = SendFile.Internal.sendFile
 
--- | Returns the mode that sendfile was compiled with. Mainly for debugging use. Possible values are 'WIN32' or 'PORTABLE'.
+-- | Returns the mode that sendfile was compiled with. Mainly for debugging use. Possible values are 'WIN32_SENDFILE' and 'PORTABLE_SENDFILE'.
 sendFileMode :: String -- ^ The mode that sendfile was compiled with
 sendFileMode = SendFile.Internal.sendFileMode

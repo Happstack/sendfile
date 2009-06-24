@@ -1,51 +1,42 @@
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
 module SendFile.Internal (
-    portableSendFile,
     sendFile,
     sendFileMode
     ) where
-
+    
+import Data.ByteString.Char8
 import Prelude hiding (readFile)
-import System.IO (Handle(..))
-import System.IO.Strict
+import System.IO (Handle(..), hFlush)
 
-#if defined(PORTABLE_SENDFILE)
-sendFileMode :: String
-sendFileMode = "PORTABLE"
-
-sendFile :: Handle -> FilePath -> IO Bool
-sendFile = portableSendFile
-
-#else
-#  if defined(WIN32_SENDFILE)
+#if defined(WIN32_SENDFILE) && !defined(PORTABLE_SENDFILE)
 import Foreign.C
-import GHC.IOBase
-import GHC.Handle
+import GHC.IOBase (haFD)
+import GHC.Handle (withHandle_)
 
 sendFileMode :: String
-sendFileMode = "WIN32"
+sendFileMode = "WIN32_SENDFILE"
 
-sendFile :: Handle -> FilePath -> IO Bool
-sendFile hdl fp = withHandle "sendFile" hdl $ \hdl' -> do
-    let clientFd = haFD hdl'
-    success <- withCString fp (c_sendfile clientFd)
-    return (hdl', success)
+sendFile :: Handle -> FilePath -> IO ()
+sendFile outh infp = do
+    -- flush outh before handing it sendFile
+    hFlush outh
+    withHandle_ "sendFile" outh $ \outh' -> do 
+    withCString infp $ \in_fp -> do
+    let out_fd = haFD outh'
+    err <- c_sendfile_win32 out_fd in_fp
+    if err == 0
+        then return ()
+        else fail ("system error " ++ show err)
     
-foreign import ccall unsafe
-    c_sendfile :: CInt -> CString -> IO Bool
-    
-#  else
+foreign import ccall
+    c_sendfile_win32 :: CInt -> CString -> IO Int
+#else
 sendFileMode :: String
-sendFileMode = "PORTABLE"
+sendFileMode = "PORTABLE_SENDFILE"
 
-sendFile :: Handle -> FilePath -> IO Bool
-sendFile = portableSendFile
-
-#  endif
+-- FIXME: possibly immature / inefficient implementation
+sendFile :: Handle -> FilePath -> IO ()
+sendFile outh infp = do
+    hPutStr outh =<< readFile infp
+    return ()
 #endif
-
--- FIXME: immature / inefficient implementation
-portableSendFile :: Handle -> FilePath -> IO Bool
-portableSendFile hdl fp = run $ do
-    hPutStr hdl =<< readFile fp
-    return True
