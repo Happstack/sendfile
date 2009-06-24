@@ -21,7 +21,8 @@ library
     hs-source-dirs:  src
 
     exposed-modules: SendFile
-                     SendFile.Internal
+
+    other-modules:   SendFile.Internal
     
     build-depends:   base >= 3 && < 5,
                      network >= 2 && < 3
