@@ -3,12 +3,10 @@ module SendFile.Internal (
     sendFile,
     sendFileMode
     ) where
-    
-import Data.ByteString.Char8
-import Prelude hiding (readFile)
+
 import System.IO (Handle(..), hFlush)
 
-#if defined(WIN32_SENDFILE) && !defined(PORTABLE_SENDFILE)
+#if defined(WIN32_SENDFILE)
 import Foreign.C
 import GHC.IOBase (haFD)
 import GHC.Handle (withHandle_)
@@ -30,8 +28,9 @@ sendFile outh infp = do
     
 foreign import ccall
     c_sendfile_win32 :: CInt -> CString -> IO Int
-#else
-#  if defined(LINUX_SENDFILE) && !defined(PORTABLE_SENDFILE)
+#endif
+
+#if defined(LINUX_SENDFILE)
 import Foreign.C
 import GHC.IOBase (haFD)
 import GHC.Handle (withHandle_)
@@ -53,7 +52,12 @@ sendFile outh infp = do
     
 foreign import ccall
     c_sendfile_linux :: CInt -> CString -> IO Int
-#  else
+#endif
+
+#if defined(PORTABLE_SENDFILE)
+import Prelude hiding (readFile)
+import Data.ByteString.Char8
+
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 
@@ -62,6 +66,4 @@ sendFile :: Handle -> FilePath -> IO ()
 sendFile outh infp = do
     hPutStr outh =<< readFile infp
     return ()
-#  endif
 #endif
-

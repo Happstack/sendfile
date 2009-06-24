@@ -5,6 +5,7 @@ synopsis:      A portable sendfile library
 description:   A library which exposes zero-copy sendfile functionality in a portable way. If a platform does not support sendfile, a fallback implementation in haskell is provided.
 license:       BSD3
 license-file:  LICENSE
+portability:   Win2k (Native), Linux (Native), Other (Haskell)
 author:        Matthew Elder <matt@mattelder.org>
 maintainer:    Matthew Elder <matt@mattelder.org>
 homepage:      http://patch-tag.com/r/sendfile
@@ -23,24 +24,20 @@ library
                      SendFile.Internal
     
     build-depends:   base >= 3 && < 5,
-                     bytestring >= 0.9.1.4 && < 0.10,
                      network >= 2 && < 3
     
-    if flag(portable)
-      cc-options: -DPORTABLE_SENDFILE
+    if os(windows) && !flag(portable)
+      cc-options: -DWIN32_SENDFILE
+      c-sources: csrc/sendfile_win32.c
+      extra-libraries: kernel32, mswsock
     else
-      if os(windows)
-        cc-options: -DWIN32_SENDFILE
-        c-sources: csrc/sendfile_win32.c
-        extra-libraries: kernel32, mswsock
+      if os(linux) && !flag(portable)
+        cc-options: -DLINUX_SENDFILE
+        c-sources: csrc/sendfile_linux.c
       else
-        if os(linux)
-          cc-options: -DLINUX_SENDFILE
-          c-sources: csrc/sendfile_linux.c
-        else
-          cc-options: -DPORTABLE_SENDFILE
+        cc-options: -DPORTABLE_SENDFILE
+        build-depends: bytestring >= 0.9.1.4 && < 0.10
 
 source-repository head
     type:     darcs
     location: http://patch-tag.com/r/sendfile/pullrepo
-
