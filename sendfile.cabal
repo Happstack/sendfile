@@ -35,8 +35,13 @@ library
         c-sources: csrc/sendfile_win32.c
         extra-libraries: kernel32, mswsock
       else
-        cc-options: -DPORTABLE_SENDFILE
+        if os(linux)
+          cc-options: -DLINUX_SENDFILE
+          c-sources: csrc/sendfile_linux.c
+        else
+          cc-options: -DPORTABLE_SENDFILE
 
 source-repository head
     type:     darcs
     location: http://patch-tag.com/r/sendfile/pullrepo
+
