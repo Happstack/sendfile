@@ -77,6 +77,7 @@ sendFile' outh infp offset count =
     withBinaryFile infp ReadMode $ \inh -> do
     hSeek inh AbsoluteSeek (fromIntegral offset)
     hPutStr outh =<< hGet inh count
+    hFlush outh 
     return ()
 #endif
 
@@ -87,3 +88,4 @@ sendFile :: Handle -> FilePath -> IO ()
 sendFile outh infp = do
     count <- fileSize infp
     sendFile' outh infp 0 count
+
