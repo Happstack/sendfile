@@ -4,7 +4,7 @@
 ><HEAD
 ><META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8"
 ><TITLE
->sendfile-0.1: A portable sendfile library</TITLE
+>sendfile-0.2: A portable sendfile library</TITLE
 ><LINK HREF="haddock.css" REL="stylesheet" TYPE="text/css"
 ><SCRIPT SRC="haddock-util.js" TYPE="text/javascript"
 ></SCRIPT
@@ -19,7 +19,7 @@
 ><IMG SRC="haskell_icon.gif" WIDTH="16" HEIGHT="16" ALT=" "
 ></TD
 ><TD CLASS="title"
->sendfile-0.1: A portable sendfile library</TD
+>sendfile-0.2: A portable sendfile library</TD
 ><TD CLASS="topbut"
 ><A HREF="index.html"
 >Contents</A
@@ -34,12 +34,20 @@
 ></TR
 ><TR
 ><TD CLASS="section1"
->sendfile-0.1: A portable sendfile library</TD
+>sendfile-0.2: A portable sendfile library</TD
 ></TR
 ><TR
 ><TD CLASS="doc"
+><P
 >A library which exposes zero-copy sendfile functionality in a portable way. If a platform does not support sendfile, a fallback implementation in haskell is provided.
-</TD
+</P
+><P
+>Currently supported platforms:
+* Windows 2000+ (Native)
+* Linux 2.6+ (Native)
+* Everything else (Haskell)
+</P
+></TD
 ></TR
 ><TR
 ><TD CLASS="section1"
@@ -69,7 +77,7 @@
 ><TD CLASS="botbar"
 >Produced by <A HREF="http://www.haskell.org/haddock/"
 >Haddock</A
-> version 2.3.0</TD
+> version 2.4.2</TD
 ></TR
 ></TABLE
 ></BODY
