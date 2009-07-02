@@ -59,7 +59,7 @@ sendFile' outh infp offset count = do
     if err == 0
         then return ()
         else fail ("errno " ++ show err)
-    
+
 foreign import ccall
     c_sendfile_linux :: CInt -> CString -> CLong -> CLong -> IO Int
 #endif
