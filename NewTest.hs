@@ -1,11 +1,12 @@
 import Control.Concurrent (forkIO, myThreadId)
-import Control.Exception (SomeException, bracket, catch, throwTo)
+import Control.Exception (SomeException(..), catch, bracket, throw, throwTo, try)
+import GHC.IOBase (IOErrorType(..), IOException(..))
 import Data.ByteString.Char8 (empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
 import Network (PortID(..), Socket, accept, connectTo, listenOn, sClose, socketPort)
 import Prelude hiding (catch, drop, length, take)
-import SendFile (sendFile, sendFile', sendFileMode)
+import Network.Socket.SendFile (sendFile, sendFile', sendFileMode)
 import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
-import System.IO (Handle, hClose, openBinaryTempFile)
+import System.IO (IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, openBinaryTempFile, openBinaryFile)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
@@ -22,7 +23,7 @@ testWith svc =
         , testProperty "Partial Offset Payload Arrives" (prop_PartialOffsetPayloadArrives svc)
         ]
     ]
-
+ 
 main = do
     putStrLn sendFileMode
     bracket setup teardown (defaultMain . testWith)
@@ -63,21 +64,37 @@ teardown service = do
 prop_PayloadArrives :: Socket -> ByteString -> Property
 prop_PayloadArrives service payload = monadicIO $ do
     let count = length payload
-    payload' <- run $ acceptWith service (\peer -> sendFile peer =<< createTempFile payload) count
-    assert $ payload == payload'
+    fp <- run $ createTempFile payload
+    res <- run $ (try $ acceptWith service (\peer -> sendFile peer fp) count :: IO (Either IOException ByteString))
+    case res of
+        Right payload' -> assert $ payload == payload'
+        Left IOError {ioe_type=InvalidArgument} -> pre False
+        Left e @ (IOError {}) -> run $ putStrLn (show $ ioe_type e) >> throw e
     
 prop_PartialPayloadArrives :: Socket -> ByteString -> Property
 prop_PartialPayloadArrives service payload = monadicIO $ do
     let count = length payload `div` 2
-    payload' <- run $ acceptWith service (\peer -> ((\fp -> sendFile' peer fp 0 count) =<< createTempFile payload)) count
-    assert $ take count payload == payload'
+    fp <- run $ createTempFile payload
+    fd <- run $ openBinaryFile fp ReadMode
+    res <- run $ (try $ acceptWith service (\peer -> sendFile' peer fd (fromIntegral count)) count :: IO (Either IOException ByteString))
+    case res of
+        Right payload' -> assert $ take count payload == payload'
+        Left IOError {ioe_type=InvalidArgument} -> pre False
+        Left e @ (IOError {}) -> run $ putStrLn (show $ ioe_type e) >> throw e
     
 prop_PartialOffsetPayloadArrives :: Socket -> ByteString -> Property
 prop_PartialOffsetPayloadArrives service payload = monadicIO $ do
     let offset = length payload `div` 2
         count = (length payload) - offset
-    payload' <- run $ acceptWith service (\peer -> ((\fp -> sendFile' peer fp offset count) =<< createTempFile payload)) count
-    assert $ drop offset payload == payload'
+    fp <- run $ createTempFile payload
+    fd <- run $ openBinaryFile fp ReadMode
+    run $ hSeek fd AbsoluteSeek (fromIntegral offset)
+    res <- run $ (try $ acceptWith service (\peer -> sendFile' peer fd (fromIntegral count)) count :: IO (Either IOException ByteString))
+    case res of
+        Right payload' -> assert $ drop offset payload == payload'
+        Left IOError {ioe_type=InvalidArgument} -> pre False
+        Left e @ (IOError {}) -> run $ putStrLn (show $ ioe_type e) >> throw e
+    
 
 accept' :: Socket -> IO Handle
 accept' service = fmap (\(h,_,_) -> h) (accept service)
@@ -87,4 +104,4 @@ createTempFile payload =
     bracket
       (openBinaryTempFile "tmp" "test.txt")
       (hClose . snd)
-      (\(fp,fh) -> (hPut fh payload) >> return fp)
+      (\(fp,fh) -> hPut fh payload >> return fp)
