@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP #-}
 module Network.Socket.SendFile.Internal (
     sendFile,
     sendFile',
@@ -9,7 +9,6 @@ import System.IO (
     Handle,
     IOMode(..),
     hFileSize,
-    hFlush,
     withBinaryFile
     )
 
@@ -21,27 +20,10 @@ sendFileMode = "WIN32_SENDFILE"
 #endif
 
 #if defined(LINUX_SENDFILE)
-import Foreign.C
-import GHC.IOBase (haFD)
-import GHC.Handle (withHandle_)
+import Network.Socket.SendFile.Linux (sendFile')
 
 sendFileMode :: String
 sendFileMode = "LINUX_SENDFILE"
-
-sendFile' :: Handle -> FilePath -> Int -> IO ()
-sendFile' outh infp offset count = do
-    -- flush outh before handing it sendFile
-    hFlush outh
-    withHandle_ "sendFile" outh $ \outh' -> do 
-    withCString infp $ \in_fp -> do
-    let out_fd = haFD outh'
-    err <- c_sendfile_linux out_fd in_fp (fromIntegral offset) (fromIntegral count)
-    if err == 0
-        then return ()
-        else fail ("errno " ++ show err)
-
-foreign import ccall
-    c_sendfile_linux :: CInt -> CString -> CLong -> CLong -> IO Int
 #endif
 
 #if defined(PORTABLE_SENDFILE)

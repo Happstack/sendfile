@@ -32,18 +32,18 @@ library
     ghc-options: -Wall
 
     if os(windows) && !flag(portable)
-      cc-options: -DWIN32_SENDFILE
+      cpp-options: -DWIN32_SENDFILE
       build-depends: Win32
       c-sources: csrc/sendfile_win32.c
       extra-libraries: mswsock
       other-modules: Network.Socket.SendFile.Win32
     else
       if os(linux) && !flag(portable)
-        cc-options: -DLINUX_SENDFILE
+        cpp-options: -DLINUX_SENDFILE
         c-sources: csrc/sendfile_linux.c
         other-modules: Network.Socket.SendFile.Linux
       else
-        cc-options: -DPORTABLE_SENDFILE
+        cpp-options: -DPORTABLE_SENDFILE
         other-modules: Network.Socket.SendFile.Portable
         build-depends: bytestring >= 0.9.1.4 && < 0.10
 
