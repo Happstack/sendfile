@@ -28,7 +28,9 @@ library
     
     build-depends:   base >= 4 && < 5,
                      network >= 2 && < 3
-    
+
+    ghc-options: -Wall
+
     if os(windows) && !flag(portable)
       cc-options: -DWIN32_SENDFILE
       build-depends: Win32
