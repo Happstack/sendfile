@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Linux system-dependent code for 'sendfile'.
-module Network.Socket.SendFile.Linux where
+module Network.Socket.SendFile.Linux (sendFile') where
 import Foreign.C
 import GHC.IOBase (haFD)
 import GHC.Handle (withHandle_)
