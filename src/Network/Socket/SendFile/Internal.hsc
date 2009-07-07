@@ -45,17 +45,10 @@ foreign import ccall
 #endif
 
 #if defined(PORTABLE_SENDFILE)
-import Prelude hiding (readFile)
-import Data.ByteString.Char8
+import Network.Socket.SendFile.Portable (sendFile')
 
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
-
--- FIXME: possibly immature / inefficient implementation
-sendFile' :: Handle -> Handle -> Integer -> IO ()
-sendFile' outp inp count = do
-    hPutStr outp =<< hGet inp (fromIntegral count)
-    hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
 #endif
 
 sendFile :: Handle -> FilePath -> IO ()

@@ -5,8 +5,8 @@ import Data.Int
 import Data.Word
 import Foreign.C.Error (throwErrno)
 import Foreign.Ptr (IntPtr, intPtrToPtr)
-import GHC.IOBase (FD, haFD)
 import GHC.Handle (withHandle_)
+import GHC.IOBase (FD, haFD)
 import System.IO (Handle, hFlush)
 import System.Win32.Types
 
