@@ -16,7 +16,7 @@ sendFile :: Handle   -- ^ The output handle
          -> IO ()
 sendFile = Network.Socket.SendFile.Internal.sendFile
 
--- | A more powerful interface than sendFile, sendFile' accepts a `Handle` for the input file instead of a `FilePath` and the number of bytes you would like to read. This unlocks the full potential `Handle`(s). For instance, if you wanted to start reading from a particular offset, you could utilize `hSeek`. If you need the file size you can use 'hFileSize'.
+-- | A more powerful interface than sendFile, sendFile' accepts a `Handle` for the input file instead of a `FilePath` and the number of bytes you would like to read; this number must be a positive integer. This unlocks the full potential `Handle`(s). For instance, if you wanted to start reading from a particular offset, you could utilize `hSeek`. If you need the file size you can use 'hFileSize'.
 sendFile' :: Handle  -- ^ The output handle
           -> Handle  -- ^ The input handle
           -> Integer -- ^ The number of bytes to read

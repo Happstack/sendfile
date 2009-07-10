@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Win32 system-dependent code for 'TransmitFile'.
-module Network.Socket.SendFile.Win32 (sendFile') where
+module Network.Socket.SendFile.Win32 (_sendFile) where
 import Data.Int
 import Data.Word
 import Foreign.C.Error (throwErrno)
@@ -12,8 +12,8 @@ import System.Win32.Types
 
 #include <windows.h>
 
-sendFile' :: Handle -> Handle -> Integer -> IO ()
-sendFile' outp inp count = do
+_sendFile :: Handle -> Handle -> Integer -> IO ()
+_sendFile outp inp count = do
     hFlush outp -- flush the buffer before invoking transmitFile
     withHandle_ "Network.Socket.SendFile.Win32.sendFile'" outp $ \outp' -> do
     withHandle_ "Network.Socket.SendFile.Win32.sendFile'" inp $ \inp' -> do

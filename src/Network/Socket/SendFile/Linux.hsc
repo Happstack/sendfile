@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Linux system-dependent code for 'sendfile'.
-module Network.Socket.SendFile.Linux (sendFile') where
+module Network.Socket.SendFile.Linux (_sendFile) where
 import Data.Int
 import Data.Word
 import Foreign.C.Error (throwErrno)
@@ -10,8 +10,8 @@ import System.IO (Handle, hFlush)
 
 #include <sys/sendfile.h>
 
-sendFile' :: Handle -> Handle -> Integer -> IO ()
-sendFile' outp inp count = do
+_sendFile :: Handle -> Handle -> Integer -> IO ()
+_sendFile outp inp count = do
     -- flush outp before sending
     hFlush outp
     withHandle_ "Network.Socket.SendFile.Linux.sendFile'" outp $ \outp' -> do
