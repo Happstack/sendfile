@@ -14,4 +14,3 @@ long c_get_osfhandle(int fd) {
     /* http://msdn.microsoft.com/en-us/library/ks2530z6.aspx */
     return _get_osfhandle(fd);
 }
-
