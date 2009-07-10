@@ -1,7 +1,7 @@
 import Control.Concurrent (forkIO, myThreadId)
 import Control.Exception (SomeException(..), catch, bracket, throw, throwTo, try)
 import GHC.IOBase (IOErrorType(..), IOException(..))
-import Data.ByteString.Char8 (empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
+import Data.ByteString.Char8 (append, empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
 import Network (PortID(..), Socket, accept, connectTo, listenOn, sClose, socketPort)
 import Prelude hiding (catch, drop, length, take)
 import Network.Socket.SendFile (sendFile, sendFile', sendFileMode)
@@ -15,7 +15,6 @@ import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 -- Test TODOS
---   > Ensure that ordering before / after sendFile with haskell handles is always preserved
 --   > Ensure that negative integers always cause an exception (HUnit?)
 testWith pair =
     [ testGroup "Test Support"
@@ -23,6 +22,7 @@ testWith pair =
         ]
     , testGroup "sendFile"
         [ testProperty "Payload Arrives" (prop_PayloadArrives pair)
+        , testProperty "Payload Arrives In Order" (prop_PayloadArrivesInOrder pair)
         ]
     , testGroup "sendFile'"
         [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives pair)
@@ -52,6 +52,20 @@ prop_PayloadArrives (p1, p2) payload = monadicIO $ do
     run (sendFile p1 fp) 
     payload' <- run (hGet p2 count)
     assert (payload == payload')
+
+-- see if ordering is correct when interleaving with haskell handle operations
+prop_PayloadArrivesInOrder :: (Handle, Handle) -> ByteString -> Property
+prop_PayloadArrivesInOrder (p1, p2) payload = monadicIO $ do
+    let count = length payload
+    fp <- run $ createTempFile payload
+    run (hPut p1 beg)
+    run (sendFile p1 fp) 
+    run (hPut p1 end)
+    run (hFlush p1) -- flush after last put
+    payload' <- run (hGet p2 (count + length beg + length end))
+    assert ((beg `append` payload `append` end) == payload')
+    where beg = (pack "BEGINNING")
+          end = (pack "END")
 
 prop_PartialPayloadArrives :: (Handle, Handle) -> ByteString -> Property
 prop_PartialPayloadArrives (p1, p2) payload = monadicIO $ do

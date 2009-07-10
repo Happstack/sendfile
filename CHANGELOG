@@ -1,0 +1,5 @@
+Changes in ?
+  > Fixed a bug where Windows would send the whole file with sendFile' if you used '0' for count
+  > Converted the foreign calls for windows and linux to 'unsafe' since code should be lock-free
+  > Only positive integers are allowed for count now in sendFile' since negative is undefined in the portable sense
+  
