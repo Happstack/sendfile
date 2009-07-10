@@ -14,6 +14,10 @@ import Test.QuickCheck.Monadic
 import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
+-- Test TODOS
+--   > Ensure that ordering before / after sendFile with haskell handles is always preserved
+--   > Ensure that negative integers always cause an exception (HUnit?)
+--   > Call functions with foreign unsafe to ensure that code is lock-free safe (better perf too?)
 testWith pair =
     [ testGroup "Test Support"
         [ testProperty "Socket Pair Connected" (prop_PairConnected pair)
