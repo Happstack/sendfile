@@ -1,5 +1,32 @@
-Changes in ?
-  > Fixed a bug where Windows would send the whole file with sendFile' if you used '0' for count
-  > Converted the foreign calls for windows and linux to 'unsafe' since code should be lock-free
-  > Only positive integers are allowed for count now in sendFile' since negative is undefined in the portable sense
-  
+  sendfile-?
+--------------------------------------------------------------------------------
+  * Fixed a bug where Windows would send the whole file with sendFile' if you
+    used '0' for count.
+  * Converted the foreign calls for windows and linux to 'unsafe' since code
+    should be lock-free.
+  * Only positive integers are allowed for count now in sendFile' since negative
+    is undefined in the portable sense.
+
+  sendfile-0.3
+--------------------------------------------------------------------------------
+  * The signature for sendFile' has changed
+      it was: Handle -> FilePath -> Int -> Int -> IO ()
+      now is: Handle -> Handle -> Int -> IO ()
+  * This allows you to pass in a handle instead of a FilePath for the infile and
+    since you can now directly manipulate the infile handle, there is no need
+    for offset (one can use hSeek).
+  * Documentation updated / expanded
+  * fileSize function removed (didn't belong)
+  * Errors are now wrapped in proper errnos (using Foreign.C.Error for nix and
+    Win32.Error for win) and give useful messages on exception.
+  * The Module Name has been changed to reflect its function:
+      it was: SendFile
+      now is: Network.Socket.SendFile
+
+  sendfile-0.2
+--------------------------------------------------------------------------------
+  * added portable offset + bytecount parameters
+
+  sendfile-0.1
+--------------------------------------------------------------------------------
+  * A library which exposes zero-copy sendfile functionality in a portable way
