@@ -23,5 +23,5 @@ _sendFile outp inp count = do
         then throwErrno "Network.Socket.SendFile.Linux.sendFile'"
         else return ()
 
-foreign import ccall
+foreign import ccall unsafe
     c_sendfile_linux :: FD -> FD -> (#type size_t) -> IO (#type ssize_t)

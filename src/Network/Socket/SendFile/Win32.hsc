@@ -36,8 +36,8 @@ transmitFile :: FD     -- ^ A handle to a connected socket.
 transmitFile out_fd in_hdl count =
     failIf_ (== 0) "Network.Socket.SendFile.Win32.transmitFile" (c_TransmitFile out_fd in_hdl count)
     
-foreign import ccall
+foreign import ccall unsafe
     c_get_osfhandle :: FD -> IO IntPtr
     
-foreign import ccall
+foreign import ccall unsafe
     c_TransmitFile :: FD -> HANDLE -> DWORD -> IO (#type BOOL)
