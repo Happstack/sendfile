@@ -26,6 +26,13 @@ sendFileMode :: String
 sendFileMode = "LINUX_SENDFILE"
 #endif
 
+#if defined(FREEBSD_SENDFILE)
+import Network.Socket.SendFile.FreeBSD (_sendFile)
+
+sendFileMode :: String
+sendFileMode = "FREEBSD_SENDFILE"
+#endif
+
 #if defined(PORTABLE_SENDFILE)
 import Network.Socket.SendFile.Portable (_sendFile)
 
