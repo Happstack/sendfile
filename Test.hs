@@ -1,3 +1,6 @@
+-- [ required libs from hackage ]
+-- QuickCheck-2.1.0.1
+-- test-framework-quickcheck-0.2.4
 import Control.Concurrent (forkIO, myThreadId)
 import Control.Exception (SomeException(..), catch, bracket, throw, throwTo, try)
 import GHC.IOBase (IOErrorType(..), IOException(..))
