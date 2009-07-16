@@ -1,3 +1,15 @@
+  sendfile-?
+--------------------------------------------------------------------------------
+  * FreeBSD support contributed by Maxime Henrion
+  * sendFile is now unsafeSendFile (continued support for a Handle as the
+    output)
+  * sendFile' is now unsafeSendFile' (continued support for a Handle as the
+    output)
+  * sendFile and sendFile' now take a Socket as the input instead of a Handle
+    in order to be more semantically correct and typesafe (a Handle used for
+    the input which was not created from a Socket will cause runtime errors).
+    Thanks to Johan Tibell for this discussion.
+
   sendfile-0.3.1
 --------------------------------------------------------------------------------
   * Fixed a bug where Windows would send the whole file with sendFile' if you
