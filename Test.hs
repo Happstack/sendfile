@@ -1,16 +1,15 @@
 -- [ required libs from hackage ]
 -- QuickCheck-2.1.0.1
 -- test-framework-quickcheck-0.2.4
-import Control.Concurrent (forkIO, myThreadId)
-import Control.Exception (SomeException(..), catch, bracket, throw, throwTo, try)
+import Control.Exception (bracket)
 import GHC.IOBase (IOErrorType(..), IOException(..))
 import Data.ByteString.Char8 (append, empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
 import Network (PortID(..), Socket, accept, connectTo, listenOn, sClose, socketPort)
 import Prelude hiding (catch, drop, length, take)
 import Network.Socket.SendFile (sendFile, sendFile', sendFileMode)
-import SocketPair (prop_PairConnected, socketPair)
+import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair)
 import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
-import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, openBinaryTempFile, openBinaryFile, hSetBuffering)
+import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, openBinaryTempFile, openBinaryFile)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
@@ -19,7 +18,7 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 testWith pair =
     [ testGroup "Test Support"
-        [ testProperty "Socket Pair Connected" (prop_PairConnected pair)
+        [ testProperty "Socket Pair Connected" (prop_HandlePairConnected pair)
         ]
     , testGroup "sendFile (unbuffered)"
         [ testProperty "Payload Arrives" (prop_PayloadArrives pair NoBuffering)
@@ -41,18 +40,9 @@ testWith pair =
 
 main = do
     putStrLn sendFileMode
-    bracket setup teardown (defaultMain . testWith)
-
-setup :: IO (Handle, Handle)
-setup = do
     createDirectoryIfMissing True "tmp"
-    socketPair
-
-teardown :: (Handle, Handle) -> IO ()
-teardown (p1, p2) = do
-    removeDirectoryRecursive "tmp"
-    hClose p1
-    hClose p2
+    pair <- handlePair
+    defaultMain (testWith pair)
 
 prop_PayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
 prop_PayloadArrives (p1, p2) bufMode payload = monadicIO $ do
