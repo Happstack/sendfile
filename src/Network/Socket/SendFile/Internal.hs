@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Network.Socket.SendFile.Internal (
     sendFile,
     sendFile',
     sendFileMode,
-    unsafeFdSendFile',
     unsafeSendFile,
     unsafeSendFile',
     ) where
@@ -42,28 +42,28 @@ sendFileMode = "FREEBSD_SENDFILE"
 #endif
 
 #if defined(PORTABLE_SENDFILE)
-import Network.Socket.SendFile.Portable (_sendFile)
+import Data.ByteString.Char8 (hGet, hPutStr)
+import Network.Socket.ByteString (send)
 
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
-#endif
 
-sendFile :: Socket -> FilePath -> IO ()
-sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do
-    count <- hFileSize inp
-    sendFile' outs inp count
+sendFile' :: Socket -> Handle -> Integer -> IO ()
+sendFile' = wrapSendFile' $ \outs inp count -> do
+    send outs =<< hGet inp (fromIntegral count)
+    return ()
 
+unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
+unsafeSendFile' = wrapSendFile' $ \outp inp count -> do
+    hPutStr outp =<< hGet inp (fromIntegral count)
+    hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
+#else
 sendFile' :: Socket -> Handle -> Integer -> IO ()
 sendFile' outs inp count =
     withHandle_ "Network.Socket.SendFile.sendFile'" inp $ \inp' -> do
     let out_fd = Fd (fdSocket outs)
     let in_fd = Fd (haFD inp')
-    unsafeFdSendFile' out_fd in_fd count
-
-unsafeSendFile :: Handle -> FilePath -> IO ()
-unsafeSendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
-    count <- hFileSize inp
-    unsafeSendFile' outp inp count
+    wrapSendFile' _sendFile out_fd in_fd count
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
 unsafeSendFile' outp inp count = do
@@ -72,10 +72,22 @@ unsafeSendFile' outp inp count = do
     withHandle_ "Network.Socket.SendFile.unsafeSendFile'" inp $ \inp' -> do
     let out_fd = Fd (haFD outp')
     let in_fd = Fd (haFD inp')
-    unsafeFdSendFile' out_fd in_fd count
+    wrapSendFile' _sendFile out_fd in_fd count
+#endif
 
-unsafeFdSendFile' :: Fd -> Fd -> Integer -> IO ()
-unsafeFdSendFile' out_fd in_fd count
+-- | wraps sendFile' to check arguments
+wrapSendFile' :: (a -> b -> Integer -> IO ()) -> a -> b -> Integer -> IO ()
+wrapSendFile' fun outp inp count
     | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
-    | otherwise  = _sendFile out_fd in_fd count
+    | otherwise  = fun outp inp count
+
+sendFile :: Socket -> FilePath -> IO ()
+sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do
+    count <- hFileSize inp
+    sendFile' outs inp count
+
+unsafeSendFile :: Handle -> FilePath -> IO ()
+unsafeSendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
+    count <- hFileSize inp
+    unsafeSendFile' outp inp count

@@ -1,13 +1,9 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Win32 system-dependent code for 'TransmitFile'.
 module Network.Socket.SendFile.Win32 (_sendFile) where
-import Data.Int
-import Data.Word
 import Foreign.C.Error (throwErrno)
 import Foreign.Ptr (IntPtr, intPtrToPtr)
-import GHC.Handle (withHandle_)
-import GHC.IOBase (haFD)
-import System.IO (Handle, hFlush)
+import Foreign.C.Types (CInt)
 import System.Posix.Types (Fd)
 import System.Win32.Types
 
@@ -37,4 +33,4 @@ foreign import ccall unsafe
     c_get_osfhandle :: Fd -> IO IntPtr
     
 foreign import ccall unsafe
-    c_TransmitFile :: Fd -> HANDLE -> DWORD -> IO (#type BOOL)
+    c_TransmitFile :: Fd -> HANDLE -> DWORD -> IO CInt
