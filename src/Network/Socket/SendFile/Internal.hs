@@ -2,15 +2,23 @@
 module Network.Socket.SendFile.Internal (
     sendFile,
     sendFile',
-    sendFileMode
+    sendFileMode,
+    unsafeFdSendFile',
+    unsafeSendFile,
+    unsafeSendFile',
     ) where
 
+import Network.Socket (Socket(..), fdSocket)
 import System.IO (
     Handle,
     IOMode(..),
     hFileSize,
+    hFlush,
     withBinaryFile
     )
+import System.Posix.Types (Fd(..))
+import GHC.Handle (withHandle_)
+import GHC.IOBase (haFD)
 
 #if defined(WIN32_SENDFILE)
 import Network.Socket.SendFile.Win32 (_sendFile)
@@ -40,13 +48,34 @@ sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 #endif
 
-sendFile :: Handle -> FilePath -> IO ()
-sendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
+sendFile :: Socket -> FilePath -> IO ()
+sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do
     count <- hFileSize inp
-    sendFile' outp inp count
+    sendFile' outs inp count
 
-sendFile' :: Handle -> Handle -> Integer -> IO ()
-sendFile' outp inp count
-    | count < 0  = error "sendFile' - count must be a positive integer"
+sendFile' :: Socket -> Handle -> Integer -> IO ()
+sendFile' outs inp count =
+    withHandle_ "Network.Socket.SendFile.sendFile'" inp $ \inp' -> do
+    let out_fd = Fd (fdSocket outs)
+    let in_fd = Fd (haFD inp')
+    unsafeFdSendFile' out_fd in_fd count
+
+unsafeSendFile :: Handle -> FilePath -> IO ()
+unsafeSendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
+    count <- hFileSize inp
+    unsafeSendFile' outp inp count
+
+unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
+unsafeSendFile' outp inp count = do
+    hFlush outp -- flush outp before sending
+    withHandle_ "Network.Socket.SendFile.unsafeSendFile'" outp $ \outp' -> do
+    withHandle_ "Network.Socket.SendFile.unsafeSendFile'" inp $ \inp' -> do
+    let out_fd = Fd (haFD outp')
+    let in_fd = Fd (haFD inp')
+    unsafeFdSendFile' out_fd in_fd count
+
+unsafeFdSendFile' :: Fd -> Fd -> Integer -> IO ()
+unsafeFdSendFile' out_fd in_fd count
+    | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
-    | otherwise  = _sendFile outp inp count
+    | otherwise  = _sendFile out_fd in_fd count

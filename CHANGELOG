@@ -9,6 +9,8 @@
     in order to be more semantically correct and typesafe (a Handle used for
     the input which was not created from a Socket will cause runtime errors).
     Thanks to Johan Tibell for this discussion.
+  * unsafeSendFileToFd was added as a low-level function; a non-socket Fd can
+    still cause a runtime error.
 
   sendfile-0.3.1
 --------------------------------------------------------------------------------
