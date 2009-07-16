@@ -6,7 +6,7 @@ import GHC.IOBase (IOErrorType(..), IOException(..))
 import Data.ByteString.Char8 (append, empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
 import Network (PortID(..), Socket, accept, connectTo, listenOn, sClose, socketPort)
 import Prelude hiding (catch, drop, length, take)
-import Network.Socket.SendFile (sendFile, sendFile', sendFileMode)
+import Network.Socket.SendFile (unsafeSendFile, unsafeSendFile', sendFileMode)
 import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair)
 import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
 import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, openBinaryTempFile, openBinaryFile)
@@ -49,7 +49,7 @@ prop_PayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     let count = length payload
     fp <- run $ createTempFile payload
-    run (sendFile p1 fp) 
+    run (unsafeSendFile p1 fp) 
     payload' <- run (hGet p2 count)
     assert (payload == payload')
 
@@ -60,7 +60,7 @@ prop_PayloadArrivesInOrder (p1, p2) bufMode payload = monadicIO $ do
     let count = length payload
     fp <- run $ createTempFile payload
     run (hPut p1 beg)
-    run (sendFile p1 fp) 
+    run (unsafeSendFile p1 fp) 
     run (hPut p1 end)
     run (hFlush p1) -- flush after last put
     payload' <- run (hGet p2 (count + length beg + length end))
@@ -74,7 +74,7 @@ prop_PartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     let count = length payload `div` 2
     fp <- run $ createTempFile payload
     fd <- run $ openBinaryFile fp ReadMode
-    run (sendFile' p1 fd (fromIntegral count))
+    run (unsafeSendFile' p1 fd (fromIntegral count))
     payload' <- run (hGet p2 count) 
     assert (take count payload == payload')
 
@@ -86,7 +86,7 @@ prop_PartialPayloadWithSeekArrives (p1, p2) bufMode payload = monadicIO $ do
     fp <- run $ createTempFile payload
     fd <- run $ openBinaryFile fp ReadMode
     run (hSeek fd AbsoluteSeek (fromIntegral offset))
-    run (sendFile' p1 fd (fromIntegral count))
+    run (unsafeSendFile' p1 fd (fromIntegral count))
     payload' <- run (hGet p2 count)
     assert (drop offset payload == payload')
 
