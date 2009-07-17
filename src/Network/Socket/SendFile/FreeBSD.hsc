@@ -4,8 +4,6 @@ module Network.Socket.SendFile.FreeBSD (_sendFile) where
 import Foreign.C.Error (throwErrnoIfMinus1)
 import Foreign.C.Types (CInt, CSize)
 import Foreign.Ptr (Ptr, nullPtr)
-import GHC.IOBase (FD, haFD)
-import GHC.Handle (withHandle_)
 import System.IO (Handle)
 import System.Posix.Types (COff, Fd)
 
