@@ -43,14 +43,14 @@ sendFileMode = "FREEBSD_SENDFILE"
 
 #if defined(PORTABLE_SENDFILE)
 import Data.ByteString.Char8 (hGet, hPutStr)
-import Network.Socket.ByteString (send)
+import Network.Socket.ByteString (sendAll)
 
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 
 sendFile' :: Socket -> Handle -> Integer -> IO ()
 sendFile' = wrapSendFile' $ \outs inp count -> do
-    send outs =<< hGet inp (fromIntegral count)
+    sendAll outs =<< hGet inp (fromIntegral count)
     return ()
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
