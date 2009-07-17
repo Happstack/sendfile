@@ -7,21 +7,17 @@ import Foreign.Ptr (Ptr, nullPtr)
 import GHC.IOBase (FD, haFD)
 import GHC.Handle (withHandle_)
 import System.IO (Handle)
-import System.Posix.Types (COff)
+import System.Posix.Types (COff, Fd)
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-_sendFile :: Handle -> Handle -> Integer -> IO ()
-_sendFile outp inp count = do
-  withHandle_ "Network.Socket.SendFile.FreeBSD.sendFile'" outp $ \outp' ->
-    withHandle_ "Network.Socket.SendFile.FreeBSD.sendFile'" inp $ \inp' -> do
-    let out_fd = haFD outp'
-    let in_fd = haFD inp'
+_sendFile :: Fd -> Fd -> Integer -> IO ()
+_sendFile out_fd in_fd count = do
     throwErrnoIfMinus1 "Network.Socket.SendFile.FreeBSD.sendFile'" $
       c_sendfile_freebsd in_fd out_fd 0 (fromIntegral count) nullPtr nullPtr 0
     return ()
 
 foreign import ccall unsafe "sendfile" c_sendfile_freebsd
-  :: FD -> FD -> COff -> CSize -> Ptr () -> Ptr COff -> CInt -> IO CInt
+    :: Fd -> Fd -> COff -> CSize -> Ptr () -> Ptr COff -> CInt -> IO CInt
