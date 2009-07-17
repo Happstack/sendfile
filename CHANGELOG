@@ -9,6 +9,7 @@
     in order to be more semantically correct and typesafe (a Handle used for
     the input which was not created from a Socket will cause runtime errors).
     Thanks to Johan Tibell for this discussion.
+  * documentation extended
 
   sendfile-0.3.1
 --------------------------------------------------------------------------------
