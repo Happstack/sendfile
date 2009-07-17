@@ -33,7 +33,7 @@ library
 
     if os(windows) && !flag(portable)
       cpp-options: -DWIN32_SENDFILE
-      build-depends: Win32
+      build-depends: Win32 >= 2.2.0.0 && < 2.3
       extra-libraries: mswsock
       other-modules: Network.Socket.SendFile.Win32
     else
