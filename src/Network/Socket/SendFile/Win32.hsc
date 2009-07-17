@@ -1,36 +1,54 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Win32 system-dependent code for 'TransmitFile'.
 module Network.Socket.SendFile.Win32 (_sendFile) where
-import Foreign.C.Error (throwErrno)
-import Foreign.Ptr (IntPtr, intPtrToPtr)
+import Foreign.C.Error (throwErrnoIf)
+import Foreign.Ptr (IntPtr, Ptr, intPtrToPtr, nullPtr)
 import Foreign.C.Types (CInt)
 import System.Posix.Types (Fd)
-import System.Win32.Types
+import System.Win32.Types (DWORD, HANDLE, failIfZero)
 
 #include <windows.h>
+#include <mswsock.h>
+
+type SOCKET = Fd
 
 _sendFile :: Fd -> Fd -> Integer -> IO ()
 _sendFile out_fd in_fd count = do
     in_hdl <- get_osfhandle in_fd
-    transmitFile (fromIntegral out_fd) in_hdl (fromIntegral count)
+    transmitFile out_fd in_hdl (fromIntegral count)
 
 get_osfhandle :: Fd        -- ^ User file descriptor.
               -> IO HANDLE -- ^ The operating-system file handle.
 get_osfhandle fd = do
-    res <- c_get_osfhandle fd
-    if res == (#const INVALID_HANDLE_VALUE)
-      then throwErrno "Network.Socket.SendFile.Win32.get_osfhandle"
-      else return (intPtrToPtr res)
+    res <- throwErrnoIf
+             (== (#const INVALID_HANDLE_VALUE))
+             "Network.Socket.SendFile.Win32.get_osfhandle"
+             (c_get_osfhandle fd)
+    return (intPtrToPtr res)
 
-transmitFile :: Fd     -- ^ A handle to a connected socket.
+transmitFile :: SOCKET -- ^ A handle to a connected socket.
              -> HANDLE -- ^ A handle to the open file that the TransmitFile function transmits.
              -> DWORD  -- ^ The number of bytes in the file to transmit.
              -> IO ()
-transmitFile out_fd in_hdl count =
-    failIf_ (== 0) "Network.Socket.SendFile.Win32.transmitFile" (c_TransmitFile out_fd in_hdl count)
-    
-foreign import ccall unsafe
-    c_get_osfhandle :: Fd -> IO IntPtr
-    
-foreign import ccall unsafe
-    c_TransmitFile :: Fd -> HANDLE -> DWORD -> IO CInt
+transmitFile out_fd in_hdl count = do
+    failIfZero
+      "Network.Socket.SendFile.Win32.transmitFile"
+      (c_TransmitFile out_fd in_hdl count 0 nullPtr nullPtr (#const TF_USE_KERNEL_APC))
+    return ()
+
+-- http://support.microsoft.com/kb/99173 - MAY BE IMPORTANT
+-- http://msdn.microsoft.com/en-us/library/ks2530z6.aspx
+foreign import ccall unsafe "io.h _get_osfhandle"
+    c_get_osfhandle :: Fd
+                    -> IO IntPtr
+
+-- http://msdn.microsoft.com/en-us/library/ms740565(VS.85).aspx
+foreign import stdcall unsafe "mswsock.h TransmitFile"
+    c_TransmitFile :: SOCKET
+                   -> HANDLE
+                   -> DWORD
+                   -> DWORD
+                   -> Ptr ()
+                   -> Ptr ()
+                   -> DWORD
+                   -> IO CInt

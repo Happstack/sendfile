@@ -34,7 +34,6 @@ library
     if os(windows) && !flag(portable)
       cpp-options: -DWIN32_SENDFILE
       build-depends: Win32
-      c-sources: csrc/sendfile_win32.c
       extra-libraries: mswsock
       other-modules: Network.Socket.SendFile.Win32
     else
