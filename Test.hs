@@ -1,98 +1,163 @@
+{-# OPTIONS_GHC -Wall #-}
 -- [ required libs from hackage ]
 -- QuickCheck-2.1.0.1
 -- test-framework-quickcheck-0.2.4
-import Control.Exception (bracket)
-import GHC.IOBase (IOErrorType(..), IOException(..))
-import Data.ByteString.Char8 (append, empty, cons, ByteString, drop, hGet, hPut, length, pack, take, unfoldrN)
-import Network (PortID(..), Socket, accept, connectTo, listenOn, sClose, socketPort)
+import Control.Exception (bracket, finally)
+import Data.ByteString.Char8 (append, ByteString, drop, hGet, hPut, length, pack, take)
 import Prelude hiding (catch, drop, length, take)
-import Network.Socket.SendFile (unsafeSendFile, unsafeSendFile', sendFileMode)
-import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair)
-import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
-import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, openBinaryTempFile, openBinaryFile)
+import Network.Socket.SendFile (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
+import Network.Socket.ByteString (sendAll)
+import Network.Socket (Socket)
+import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair, recvAll)
+import System.Directory (createDirectoryIfMissing, removeFile)
+import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, openBinaryTempFile, withBinaryFile)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
-import Test.Framework (defaultMain, testGroup)
+import Test.Framework (Test, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
-testWith pair =
+testWith :: (Socket, Socket) -> (Handle, Handle) -> [Test]
+testWith spair hpair =
     [ testGroup "Test Support"
-        [ testProperty "Socket Pair Connected" (prop_HandlePairConnected pair)
+        [ testProperty "Socket Pair Connected" (prop_SocketPairConnected spair)
+        , testProperty "Handle Pair Connected" (prop_HandlePairConnected hpair)
         ]
-    , testGroup "sendFile (unbuffered)"
-        [ testProperty "Payload Arrives" (prop_PayloadArrives pair NoBuffering)
-        , testProperty "Payload Arrives In Order" (prop_PayloadArrivesInOrder pair NoBuffering)
+    , testGroup "sendFile"
+        [ testProperty "Payload Arrives" (prop_PayloadArrives spair)
+        , testProperty "Payload Arrives In Order" (prop_PayloadArrivesInOrder spair)
         ]
-    , testGroup "sendFile (buffered)"
-        [ testProperty "Payload Arrives" (prop_PayloadArrives pair (BlockBuffering Nothing))
-        , testProperty "Payload Arrives In Order" (prop_PayloadArrivesInOrder pair (BlockBuffering Nothing))
+    , testGroup "sendFile'"
+        [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives spair)
+        , testProperty "Partial Payload With Seek Arrives" (prop_PartialPayloadWithSeekArrives spair)
         ]
-    , testGroup "sendFile' (unbuffered)"
-        [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives pair NoBuffering)
-        , testProperty "Partial Payload With Seek Arrives" (prop_PartialPayloadWithSeekArrives pair NoBuffering)
+    , testGroup "unsafeSendFile (unbuffered)"
+        [ testProperty "Payload Arrives" (prop_UnsafePayloadArrives hpair NoBuffering)
+        , testProperty "Payload Arrives In Order" (prop_UnsafePayloadArrivesInOrder hpair NoBuffering)
         ]
-    , testGroup "sendFile' (buffered)"
-        [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives pair (BlockBuffering Nothing))
-        , testProperty "Partial Payload With Seek Arrives" (prop_PartialPayloadWithSeekArrives pair (BlockBuffering Nothing))
+    , testGroup "unsafeSendFile (buffered)"
+        [ testProperty "Payload Arrives" (prop_UnsafePayloadArrives hpair (BlockBuffering Nothing))
+        , testProperty "Payload Arrives In Order" (prop_UnsafePayloadArrivesInOrder hpair (BlockBuffering Nothing))
+        ]
+    , testGroup "unsafeSendFile' (unbuffered)"
+        [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair NoBuffering)
+        , testProperty "Partial Payload With Seek Arrives" (prop_UnsafePartialPayloadWithSeekArrives hpair NoBuffering)
+        ]
+    , testGroup "unsafeSendFile' (buffered)"
+        [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
+        , testProperty "Partial Payload With Seek Arrives" (prop_UnsafePartialPayloadWithSeekArrives hpair (BlockBuffering Nothing))
         ]
     ]
 
+main :: IO ()
 main = do
     putStrLn sendFileMode
     createDirectoryIfMissing True "tmp"
-    pair <- handlePair
-    defaultMain (testWith pair)
+    spair <- socketPair
+    hpair <- handlePair
+    defaultMain (testWith spair hpair)
 
-prop_PayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
-prop_PayloadArrives (p1, p2) bufMode payload = monadicIO $ do
+--------------------------------------------------------------------------------
+-- sendFile & sendFile'                                                       --
+--------------------------------------------------------------------------------
+prop_PayloadArrives :: (Socket, Socket) -> ByteString -> Property
+prop_PayloadArrives (p1, p2) payload = monadicIO $ do
+    let count = length payload
+    pre (count > 0) -- recvAll complains if count == 0
+    run (withTempFile payload $ \fp -> do
+             sendFile p1 fp)
+    payload' <- run (recvAll p2 count)
+    assert (payload == payload')
+
+-- see if ordering is correct when interleaving with haskell socket operations
+prop_PayloadArrivesInOrder :: (Socket, Socket) -> ByteString -> Property
+prop_PayloadArrivesInOrder (p1, p2) payload = monadicIO $ do
+    let count = length payload
+    pre (count > 0) -- recvAll complains if count == 0
+    run (withTempFile payload $ \fp -> do
+             sendAll p1 beg
+             sendFile p1 fp
+             sendAll p1 end)
+    payload' <- run (recvAll p2 (count + length beg + length end))
+    assert ((beg `append` payload `append` end) == payload')
+    where beg = (pack "BEGINNING")
+          end = (pack "END")
+
+prop_PartialPayloadArrives :: (Socket, Socket) -> ByteString -> Property
+prop_PartialPayloadArrives (p1, p2) payload = monadicIO $ do
+    let count = length payload `div` 2
+    pre (count > 0) -- recvAll complains if count == 0
+    run (withTempFile payload $ \fp -> do
+         withBinaryFile fp ReadMode $ \fd -> do
+             sendFile' p1 fd (fromIntegral count))
+    payload' <- run (recvAll p2 count) 
+    assert (take count payload == payload')
+
+prop_PartialPayloadWithSeekArrives :: (Socket, Socket) -> ByteString -> Property
+prop_PartialPayloadWithSeekArrives (p1, p2) payload = monadicIO $ do
+    let offset = length payload `div` 2
+        count = (length payload) - offset
+    pre (count > 0) -- recvAll complains if count == 0
+    run (withTempFile payload $ \fp -> do
+         withBinaryFile fp ReadMode $ \fd -> do
+             hSeek fd AbsoluteSeek (fromIntegral offset)
+             sendFile' p1 fd (fromIntegral count))
+    payload' <- run (recvAll p2 count)
+    assert (drop offset payload == payload')
+
+--------------------------------------------------------------------------------
+-- unsafeSendFile & unsafeSendFile'                                           --
+--------------------------------------------------------------------------------
+prop_UnsafePayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
+prop_UnsafePayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     let count = length payload
-    fp <- run $ createTempFile payload
-    run (unsafeSendFile p1 fp) 
+    run (withTempFile payload $ \fp -> do
+             unsafeSendFile p1 fp)
     payload' <- run (hGet p2 count)
     assert (payload == payload')
 
 -- see if ordering is correct when interleaving with haskell handle operations
-prop_PayloadArrivesInOrder :: (Handle, Handle) -> BufferMode -> ByteString -> Property
-prop_PayloadArrivesInOrder (p1, p2) bufMode payload = monadicIO $ do
+prop_UnsafePayloadArrivesInOrder :: (Handle, Handle) -> BufferMode -> ByteString -> Property
+prop_UnsafePayloadArrivesInOrder (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     let count = length payload
-    fp <- run $ createTempFile payload
-    run (hPut p1 beg)
-    run (unsafeSendFile p1 fp) 
-    run (hPut p1 end)
-    run (hFlush p1) -- flush after last put
+    run (withTempFile payload $ \fp -> do
+             hPut p1 beg
+             unsafeSendFile p1 fp
+             hPut p1 end
+             hFlush p1) -- flush after last put
     payload' <- run (hGet p2 (count + length beg + length end))
     assert ((beg `append` payload `append` end) == payload')
     where beg = (pack "BEGINNING")
           end = (pack "END")
 
-prop_PartialPayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
-prop_PartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
+prop_UnsafePartialPayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
+prop_UnsafePartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     let count = length payload `div` 2
-    fp <- run $ createTempFile payload
-    fd <- run $ openBinaryFile fp ReadMode
-    run (unsafeSendFile' p1 fd (fromIntegral count))
+    run (withTempFile payload $ \fp -> do
+         withBinaryFile fp ReadMode $ \fd -> do
+             unsafeSendFile' p1 fd (fromIntegral count))
     payload' <- run (hGet p2 count) 
     assert (take count payload == payload')
 
-prop_PartialPayloadWithSeekArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
-prop_PartialPayloadWithSeekArrives (p1, p2) bufMode payload = monadicIO $ do
+prop_UnsafePartialPayloadWithSeekArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
+prop_UnsafePartialPayloadWithSeekArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     let offset = length payload `div` 2
         count = (length payload) - offset
-    fp <- run $ createTempFile payload
-    fd <- run $ openBinaryFile fp ReadMode
-    run (hSeek fd AbsoluteSeek (fromIntegral offset))
-    run (unsafeSendFile' p1 fd (fromIntegral count))
+    run (withTempFile payload $ \fp -> do
+         withBinaryFile fp ReadMode $ \fd -> do
+             hSeek fd AbsoluteSeek (fromIntegral offset)
+             unsafeSendFile' p1 fd (fromIntegral count))
     payload' <- run (hGet p2 count)
     assert (drop offset payload == payload')
 
-createTempFile :: ByteString -> IO FilePath
-createTempFile payload =
-    bracket
-      (openBinaryTempFile "tmp" "test.txt")
-      (hClose . snd)
-      (\(fp,fh) -> hPut fh payload >> return fp)
+withTempFile :: ByteString -> (FilePath -> IO a) -> IO a
+withTempFile payload fun = do
+      fp <- bracket
+              (openBinaryTempFile "tmp" "test.txt")
+              (hClose . snd)
+              (\(fp,fh) -> hPut fh payload >> return fp)
+      fun fp `finally` removeFile fp

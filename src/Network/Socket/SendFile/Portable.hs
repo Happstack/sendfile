@@ -11,7 +11,7 @@ unsafeFdSendFile' out_fd in_fd count
     | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
     | otherwise  = _sendFile out_fd in_fd count
-    
+
 sendFile' :: Socket -> Handle -> Integer -> IO ()
 sendFile' outs inp count
     | count < 0  = error "SendFile - count must be a positive integer"

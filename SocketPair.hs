@@ -1,10 +1,10 @@
-module SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair) where
+module SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, recvAll, socketPair) where
 import Control.Concurrent
 import Control.Exception (bracket)
-import Data.ByteString.Char8 (ByteString, hGet, hPut, length, pack)
+import Data.ByteString.Char8 (ByteString, append, empty, hGet, hPut, length, pack)
 import Network (PortID(..), Socket, listenOn, sClose)
 import Network.Socket (Family(..), SockAddr(..), SocketType(..), accept, aNY_PORT, connect, defaultProtocol, getSocketName, inet_addr, socket, socketPort, socketToHandle)
-import Network.Socket.ByteString (recv, send)
+import Network.Socket.ByteString (recv, sendAll)
 import Prelude hiding (length)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -46,10 +46,10 @@ prop_SocketPairConnected :: (Socket, Socket) -> ByteString -> Property
 prop_SocketPairConnected (p1, p2) payload = monadicIO $ do
     let len = length payload
     pre (len > 0)
-    run $ send p1 payload
-    run $ send p2 payload
-    pre =<< fmap (== payload) (run $ recv p1 len)
-    pre =<< fmap (== payload) (run $ recv p2 len)
+    run $ sendAll p1 payload
+    run $ sendAll p2 payload
+    pre =<< fmap (== payload) (run $ recvAll p1 len)
+    pre =<< fmap (== payload) (run $ recvAll p2 len)
 
 prop_HandlePairConnected :: (Handle, Handle) -> ByteString -> Property
 prop_HandlePairConnected (p1, p2) payload = monadicIO $ do
@@ -60,3 +60,11 @@ prop_HandlePairConnected (p1, p2) payload = monadicIO $ do
     run $ hFlush p2
     pre =<< fmap (== payload) (run $ hGet p1 len)
     pre =<< fmap (== payload) (run $ hGet p2 len)
+
+-- like sendAll
+recvAll :: Socket -> Int -> IO ByteString
+recvAll _ 0 = return empty
+recvAll sock len = do
+    recv_dta <- recv sock len
+    let recv_len = length recv_dta
+    fmap (append recv_dta) (recvAll sock (len - recv_len))
