@@ -39,7 +39,6 @@ library
     else
       if os(linux) && !flag(portable)
         cpp-options: -DLINUX_SENDFILE
-        c-sources: csrc/sendfile_linux.c
         other-modules: Network.Socket.SendFile.Linux
       else
         if os(freebsd) && !flag(portable)
