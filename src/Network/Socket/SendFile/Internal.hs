@@ -51,12 +51,13 @@ sendFileMode = "PORTABLE_SENDFILE"
 sendFile' :: Socket -> Handle -> Integer -> IO ()
 sendFile' = wrapSendFile' $ \outs inp count -> do
     sendAll outs =<< hGet inp (fromIntegral count)
-    return ()
+    return count -- haskell implementation simply returns count for nsent
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
 unsafeSendFile' = wrapSendFile' $ \outp inp count -> do
     hPutStr outp =<< hGet inp (fromIntegral count)
     hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
+    return count -- haskell implementation simply returns count for nsent
 #else
 sendFile' :: Socket -> Handle -> Integer -> IO ()
 sendFile' outs inp count =
