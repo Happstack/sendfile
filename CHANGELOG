@@ -1,4 +1,4 @@
-  sendfile-?
+  sendfile-0.4
 --------------------------------------------------------------------------------
   * FreeBSD support contributed by Maxime Henrion (untested!)
   * sendFile is now unsafeSendFile (continued support for a Handle as the
