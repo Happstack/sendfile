@@ -12,10 +12,15 @@ import System.Win32.Types (DWORD, HANDLE, failIfZero)
 
 type SOCKET = Fd
 
-_sendFile :: Fd -> Fd -> Integer -> IO ()
+_sendFile :: Fd -> Fd -> Integer -> IO Integer
 _sendFile out_fd in_fd count = do
     in_hdl <- get_osfhandle in_fd
     transmitFile out_fd in_hdl (fromIntegral count)
+    -- according to msdn:
+    --   If the TransmitFile function is called with the lpOverlapped parameter
+    --   set to NULL, the operation is executed as synchronous I/O. The function
+    --   will not complete until the file has been sent.
+    return count
 
 get_osfhandle :: Fd        -- ^ User file descriptor.
               -> IO HANDLE -- ^ The operating-system file handle.
@@ -52,3 +57,4 @@ foreign import stdcall unsafe "mswsock.h TransmitFile"
                    -> Ptr ()
                    -> DWORD
                    -> IO CInt
+
