@@ -1,6 +1,6 @@
   sendfile-?
 --------------------------------------------------------------------------------
-  * FreeBSD support contributed by Maxime Henrion
+  * FreeBSD support contributed by Maxime Henrion (untested!)
   * sendFile is now unsafeSendFile (continued support for a Handle as the
     output)
   * sendFile' is now unsafeSendFile' (continued support for a Handle as the
