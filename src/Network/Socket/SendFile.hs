@@ -36,7 +36,7 @@ sendFile'
     :: Socket  -- ^ The output socket
     -> Handle  -- ^ The input file handle
     -> Integer -- ^ The number of bytes to send
-    -> IO ()   -- 
+    -> IO ()
 sendFile' = Network.Socket.SendFile.Internal.sendFile'
 
 -- | The unsafe version of sendFile which accepts a `Handle` instead of a `Socket` for the output.  It will flush the output handle before sending any file data.
@@ -57,3 +57,4 @@ unsafeSendFile' = Network.Socket.SendFile.Internal.unsafeSendFile'
 -- | Returns the mode that sendfile was compiled with. Mainly for debugging use. Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE', and 'PORTABLE_SENDFILE'.
 sendFileMode :: String -- ^ The mode that sendfile was compiled with
 sendFileMode = Network.Socket.SendFile.Internal.sendFileMode
+

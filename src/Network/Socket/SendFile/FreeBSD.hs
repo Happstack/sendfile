@@ -1,14 +1,14 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | FreeBSD system-dependent code for 'sendfile'.
 module Network.Socket.SendFile.FreeBSD (_sendFile) where
-import Foreign.C.Error (throwErrnoIfMinus1_)
+import Foreign.C.Error (throwErrnoIfMinus1)
 import Foreign.C.Types (CInt, CSize)
 import Foreign.Ptr (Ptr, nullPtr)
 import System.Posix.Types (COff, Fd)
 
-_sendFile :: Fd -> Fd -> Integer -> IO ()
+_sendFile :: Fd -> Fd -> Integer -> IO Integer
 _sendFile out_fd in_fd count =
-    throwErrnoIfMinus1_
+    fmap fromIntegral $ throwErrnoIfMinus1
       "Network.Socket.SendFile.FreeBSD.sendFile'"
       (c_sendfile_freebsd in_fd out_fd 0 (fromIntegral count) nullPtr nullPtr 0)
 

@@ -76,11 +76,15 @@ unsafeSendFile' outp inp count = do
 #endif
 
 -- | wraps sendFile' to check arguments
-wrapSendFile' :: (a -> b -> Integer -> IO ()) -> a -> b -> Integer -> IO ()
+wrapSendFile' :: (a -> b -> Integer -> IO Integer) -> a -> b -> Integer -> IO ()
 wrapSendFile' fun outp inp count
     | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
-    | otherwise  = fun outp inp count
+    | otherwise  = do
+          nsent <- fun outp inp count
+          if nsent < count || nsent > count
+            then error ("SendFile - " ++ show nsent ++ " of " ++ show count ++ " bytes sent!")
+            else return ()
 
 sendFile :: Socket -> FilePath -> IO ()
 sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do
