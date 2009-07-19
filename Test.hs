@@ -63,7 +63,6 @@ main = do
 prop_PayloadArrives :: (Socket, Socket) -> ByteString -> Property
 prop_PayloadArrives (p1, p2) payload = monadicIO $ do
     let count = length payload
-    pre (count > 0) -- recvAll complains if count == 0
     run (withTempFile payload $ \fp -> do
              sendFile p1 fp)
     payload' <- run (recvAll p2 count)
@@ -73,7 +72,6 @@ prop_PayloadArrives (p1, p2) payload = monadicIO $ do
 prop_PayloadArrivesInOrder :: (Socket, Socket) -> ByteString -> Property
 prop_PayloadArrivesInOrder (p1, p2) payload = monadicIO $ do
     let count = length payload
-    pre (count > 0) -- recvAll complains if count == 0
     run (withTempFile payload $ \fp -> do
              sendAll p1 beg
              sendFile p1 fp
@@ -86,7 +84,6 @@ prop_PayloadArrivesInOrder (p1, p2) payload = monadicIO $ do
 prop_PartialPayloadArrives :: (Socket, Socket) -> ByteString -> Property
 prop_PartialPayloadArrives (p1, p2) payload = monadicIO $ do
     let count = length payload `div` 2
-    pre (count > 0) -- recvAll complains if count == 0
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              sendFile' p1 fd (fromIntegral count))
@@ -97,7 +94,6 @@ prop_PartialPayloadWithSeekArrives :: (Socket, Socket) -> ByteString -> Property
 prop_PartialPayloadWithSeekArrives (p1, p2) payload = monadicIO $ do
     let offset = length payload `div` 2
         count = (length payload) - offset
-    pre (count > 0) -- recvAll complains if count == 0
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              hSeek fd AbsoluteSeek (fromIntegral offset)
