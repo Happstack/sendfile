@@ -13,7 +13,7 @@ _sendFile out_fd in_fd count = alloca $ \sbytes -> do
     throwErrnoIfMinus1_
       "Network.Socket.SendFile.FreeBSD.sendFile'"
       (c_sendfile_freebsd in_fd out_fd 0 (fromIntegral count) nullPtr sbytes 0)
-    peek sbytes
+    fmap fromIntegral (peek sbytes)
 
 foreign import ccall unsafe "sys/uio.h sendfile" c_sendfile_freebsd
     :: Fd -> Fd -> COff -> CSize -> Ptr () -> Ptr COff -> CInt -> IO CInt
