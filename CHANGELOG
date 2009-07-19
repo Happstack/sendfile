@@ -7,9 +7,9 @@
     output)
   * sendFile and sendFile' now take a Socket as the output instead of a Handle
     in order to be more semantically correct and typesafe (a Handle used for
-    the input which was not created from a Socket will cause runtime errors).
+    the output which was not created from a Socket will cause runtime errors).
     Thanks to Johan Tibell for this discussion.
-  * documentation extended
+  * documentation extended / improved
 
   sendfile-0.3.1
 --------------------------------------------------------------------------------
