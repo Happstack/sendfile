@@ -1,3 +1,8 @@
+  sendfile-0.?
+--------------------------------------------------------------------------------
+  * Code simplification / beautification
+  * Added runtime check which will make sure all bytes are sent (or raise an exception)
+
   sendfile-0.4
 --------------------------------------------------------------------------------
   * FreeBSD support contributed by Maxime Henrion (untested!)
