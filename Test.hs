@@ -2,20 +2,23 @@
 -- [ required libs from hackage ]
 -- QuickCheck-2.1.0.1
 -- test-framework-quickcheck-0.2.4
+import Control.Concurrent (forkIO)
 import Control.Exception (bracket, finally)
-import Data.ByteString.Char8 (append, ByteString, drop, hGet, hPut, length, pack, take)
-import Prelude hiding (catch, drop, length, take)
+import Data.ByteString.Char8 (append, ByteString, hGet, hPut, length, pack, take)
+import Prelude hiding (catch, length, take)
 import Network.Socket.SendFile (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
-import Network.Socket.ByteString (sendAll)
+import Network.Socket.ByteString (recv, sendAll)
 import Network.Socket (Socket)
 import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair, recvAll)
 import System.Directory (createDirectoryIfMissing, removeFile)
-import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, openBinaryTempFile, withBinaryFile)
+import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSeek, hSetBuffering, hSetFileSize, openBinaryTempFile, withBinaryFile)
+import qualified Test.HUnit as H
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
 import Test.Framework (Test, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Providers.HUnit (testCase)
 
 testWith :: (Socket, Socket) -> (Handle, Handle) -> [Test]
 testWith spair hpair =
@@ -30,6 +33,7 @@ testWith spair hpair =
     , testGroup "sendFile'"
         [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives spair)
         , testProperty "Partial Payload With Seek Arrives" (prop_PartialPayloadWithSeekArrives spair)
+        , testCase "Large Filesize Arrives" (test_LargeFileSizeArrives spair)
         ]
     , testGroup "unsafeSendFile (unbuffered)"
         [ testProperty "Payload Arrives" (prop_UnsafePayloadArrives hpair NoBuffering)
@@ -86,7 +90,7 @@ prop_PartialPayloadArrives (p1, p2) payload = monadicIO $ do
     let count = length payload `div` 2
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
-             sendFile' p1 fd (fromIntegral count))
+             sendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (recvAll p2 count) 
     assert (take count payload == payload')
 
@@ -97,9 +101,22 @@ prop_PartialPayloadWithSeekArrives (p1, p2) payload = monadicIO $ do
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              hSeek fd AbsoluteSeek (fromIntegral offset)
-             sendFile' p1 fd (fromIntegral count))
+             sendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (recvAll p2 count)
-    assert (drop offset payload == payload')
+    assert (take count payload == payload')
+
+test_LargeFileSizeArrives :: (Socket, Socket) -> H.Assertion
+test_LargeFileSizeArrives (p1, p2) =
+    withBinaryFile "large.txt" ReadWriteMode $ \h -> do
+    hSetFileSize h largeLen
+    forkIO (sendFile' p1 h 0 (fromIntegral largeLen))
+    receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
+    H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
+    where largeLen = 3 * 1024 * 1024 * 1024
+          recvCountBytes _    0 = return 0
+          recvCountBytes sock len = do
+              recvLen <- fmap length (recv sock 4194304)
+              fmap (recvLen +) (recvCountBytes sock (len - recvLen))
 
 --------------------------------------------------------------------------------
 -- unsafeSendFile & unsafeSendFile'                                           --
@@ -134,7 +151,7 @@ prop_UnsafePartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     let count = length payload `div` 2
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
-             unsafeSendFile' p1 fd (fromIntegral count))
+             unsafeSendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (hGet p2 count) 
     assert (take count payload == payload')
 
@@ -146,9 +163,9 @@ prop_UnsafePartialPayloadWithSeekArrives (p1, p2) bufMode payload = monadicIO $ 
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              hSeek fd AbsoluteSeek (fromIntegral offset)
-             unsafeSendFile' p1 fd (fromIntegral count))
+             unsafeSendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (hGet p2 count)
-    assert (drop offset payload == payload')
+    assert (take count payload == payload')
 
 withTempFile :: ByteString -> (FilePath -> IO a) -> IO a
 withTempFile payload fun = do

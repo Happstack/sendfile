@@ -8,6 +8,9 @@ module Network.Socket.SendFile.Internal (
     unsafeSendFile',
     ) where
 
+import Data.Int (Int64)
+import GHC.Handle (withHandle_)
+import GHC.IOBase (haFD)
 import Network.Socket (Socket(..), fdSocket)
 import System.IO (
     Handle,
@@ -17,8 +20,6 @@ import System.IO (
     withBinaryFile
     )
 import System.Posix.Types (Fd(..))
-import GHC.Handle (withHandle_)
-import GHC.IOBase (haFD)
 
 #if defined(WIN32_SENDFILE)
 import Network.Socket.SendFile.Win32 (_sendFile)
@@ -48,51 +49,47 @@ import Network.Socket.ByteString (sendAll)
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 
-sendFile' :: Socket -> Handle -> Integer -> IO ()
+sendFile' :: Socket -> Handle -> Int64 -> IO ()
 sendFile' = wrapSendFile' $ \outs inp count -> do
     sendAll outs =<< hGet inp (fromIntegral count)
     return count -- haskell implementation simply returns count for nsent
 
-unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
+unsafeSendFile' :: Handle -> Handle -> Int64 -> IO ()
 unsafeSendFile' = wrapSendFile' $ \outp inp count -> do
     hPutStr outp =<< hGet inp (fromIntegral count)
     hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
     return count -- haskell implementation simply returns count for nsent
 #else
-sendFile' :: Socket -> Handle -> Integer -> IO ()
-sendFile' outs inp count =
+sendFile' :: Socket -> Handle -> Int64 -> Int64 -> IO ()
+sendFile' outs inp off count =
     withHandle_ "Network.Socket.SendFile.sendFile'" inp $ \inp' -> do
     let out_fd = Fd (fdSocket outs)
     let in_fd = Fd (haFD inp')
-    wrapSendFile' _sendFile out_fd in_fd count
+    wrapSendFile' _sendFile out_fd in_fd off count
 
-unsafeSendFile' :: Handle -> Handle -> Integer -> IO ()
-unsafeSendFile' outp inp count = do
+unsafeSendFile' :: Handle -> Handle -> Int64 -> Int64 -> IO ()
+unsafeSendFile' outp inp off count = do
     hFlush outp -- flush outp before sending
     withHandle_ "Network.Socket.SendFile.unsafeSendFile'" outp $ \outp' -> do
     withHandle_ "Network.Socket.SendFile.unsafeSendFile'" inp $ \inp' -> do
     let out_fd = Fd (haFD outp')
     let in_fd = Fd (haFD inp')
-    wrapSendFile' _sendFile out_fd in_fd count
+    wrapSendFile' _sendFile out_fd in_fd off count
 #endif
 
 -- | wraps sendFile' to check arguments
-wrapSendFile' :: (a -> b -> Integer -> IO Integer) -> a -> b -> Integer -> IO ()
-wrapSendFile' fun outp inp count
+wrapSendFile' :: (a -> b -> Int64 -> Int64 -> IO ()) -> a -> b -> Int64 -> Int64 -> IO ()
+wrapSendFile' fun outp inp off count
     | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
-    | otherwise  = do
-          nsent <- fun outp inp count
-          if nsent < count || nsent > count
-            then error ("SendFile - " ++ show nsent ++ " of " ++ show count ++ " bytes sent!")
-            else return ()
+    | otherwise  = fun outp inp off count
 
 sendFile :: Socket -> FilePath -> IO ()
 sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do
     count <- hFileSize inp
-    sendFile' outs inp count
+    sendFile' outs inp 0 (fromIntegral count)
 
 unsafeSendFile :: Handle -> FilePath -> IO ()
 unsafeSendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
     count <- hFileSize inp
-    unsafeSendFile' outp inp count
+    unsafeSendFile' outp inp 0 (fromIntegral count)

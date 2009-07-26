@@ -19,10 +19,13 @@ module Network.Socket.SendFile (
     -- * Utility functions
     sendFileMode
     ) where
+import Data.Int (Int64)
 import qualified Network.Socket.SendFile.Internal (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
-    
-import System.IO (Handle)
 import Network.Socket (Socket)
+import System.IO (Handle)
+
+type Offset = Int64
+type ByteCount = Int64
 
 -- | The simplest interface. Simply give it an output `Socket` and the `FilePath` to the input file.
 sendFile
@@ -33,9 +36,10 @@ sendFile = Network.Socket.SendFile.Internal.sendFile
 
 -- | A more powerful interface than sendFile, sendFile' accepts a `Handle` for the input file instead of a `FilePath` and the number of bytes you would like to read; this number must be a positive integer. This unlocks the full potential `Handle`(s). For instance, if you wanted to start reading from a particular offset in the file you could utilize `hSeek`; if you needed the file size you could use 'hFileSize'.
 sendFile'
-    :: Socket  -- ^ The output socket
-    -> Handle  -- ^ The input file handle
-    -> Integer -- ^ The number of bytes to send
+    :: Socket    -- ^ The output socket
+    -> Handle    -- ^ The input file handle
+    -> Offset    -- ^ The offset to start at
+    -> ByteCount -- ^ The number of bytes to send
     -> IO ()
 sendFile' = Network.Socket.SendFile.Internal.sendFile'
 
@@ -48,9 +52,10 @@ unsafeSendFile = Network.Socket.SendFile.Internal.unsafeSendFile
 
 -- | The unsafe version of sendFile' which accepts a `Handle` instead of a `Socket` for the output. It will flush the output handle before sending any file data.
 unsafeSendFile'
-    :: Handle  -- ^ The output handle
-    -> Handle  -- ^ The input file handle
-    -> Integer -- ^ The number of bytes to send
+    :: Handle    -- ^ The output handle
+    -> Handle    -- ^ The input file handle
+    -> Offset    -- ^ The offset to start at
+    -> ByteCount -- ^ The number of bytes to send
     -> IO ()
 unsafeSendFile' = Network.Socket.SendFile.Internal.unsafeSendFile'
 
