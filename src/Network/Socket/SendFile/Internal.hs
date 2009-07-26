@@ -8,6 +8,7 @@ module Network.Socket.SendFile.Internal (
     unsafeSendFile',
     ) where
 
+import Control.Exception (finally)
 import Data.Int (Int64)
 import GHC.Handle (withHandle_)
 import GHC.IOBase (haFD)
@@ -19,6 +20,7 @@ import System.IO (
     hFileSize,
     hFlush,
     hSeek,
+    hTell,
     withBinaryFile
     )
 import System.Posix.Types (Fd(..))
@@ -45,6 +47,7 @@ sendFileMode = "FREEBSD_SENDFILE"
 #endif
 
 #if defined(PORTABLE_SENDFILE)
+-- WARNING: mutated handle guarantee is not threadsafe for the portable implementation! (cannot portably duplicate a handle)
 import Data.ByteString.Char8 (hGet, hPutStr)
 import Network.Socket.ByteString (send)
 
@@ -53,8 +56,11 @@ sendFileMode = "PORTABLE_SENDFILE"
 
 sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile' = wrapSendFile' $ \outs inp off count -> do
-    hSeek inp AbsoluteSeek off
-    rsend outs inp count
+    befPos <- hTell inp
+    finally
+      (do hSeek inp AbsoluteSeek off
+          rsend outs inp count)
+      (hSeek inp AbsoluteSeek befPos)
     where rsend _    _   0        = return ()
           rsend outs inp reqBytes = do
               let bytes = min 4096 reqBytes :: Integer
@@ -63,8 +69,11 @@ sendFile' = wrapSendFile' $ \outs inp off count -> do
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> Integer -> IO ()
 unsafeSendFile' = wrapSendFile' $ \outp inp off count -> do
-    hSeek inp AbsoluteSeek off
-    hPutStr outp =<< hGet inp (fromIntegral count)
+    befPos <- hTell inp
+    finally
+      (do hSeek inp AbsoluteSeek off
+          hPutStr outp =<< hGet inp (fromIntegral count))
+      (hSeek inp AbsoluteSeek befPos)
     hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
 #else
 sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
@@ -100,3 +109,4 @@ unsafeSendFile :: Handle -> FilePath -> IO ()
 unsafeSendFile outp infp = withBinaryFile infp ReadMode $ \inp -> do
     count <- hFileSize inp
     unsafeSendFile' outp inp 0 (fromIntegral count)
+
