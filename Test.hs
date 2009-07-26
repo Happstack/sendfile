@@ -4,8 +4,8 @@
 -- test-framework-quickcheck-0.2.4
 import Control.Concurrent (forkIO)
 import Control.Exception (bracket, finally)
-import Data.ByteString.Char8 (append, ByteString, hGet, hPut, length, pack, take)
-import Prelude hiding (catch, length, take)
+import Data.ByteString.Char8 (append, drop, ByteString, hGet, hPut, length, pack, take)
+import Prelude hiding (catch, drop, length, take)
 import Network.Socket.SendFile (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
 import Network.Socket.ByteString (recv, sendAll)
 import Network.Socket (Socket)
@@ -32,7 +32,7 @@ testWith spair hpair =
         ]
     , testGroup "sendFile'"
         [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives spair)
-        , testProperty "Partial Payload With Seek Arrives" (prop_PartialPayloadWithSeekArrives spair)
+        , testProperty "Partial Payload with Offset Arrives" (prop_PartialPayloadWithOffsetArrives spair)
         , testCase "Large Filesize Arrives" (test_LargeFileSizeArrives spair)
         ]
     , testGroup "unsafeSendFile (unbuffered)"
@@ -45,11 +45,11 @@ testWith spair hpair =
         ]
     , testGroup "unsafeSendFile' (unbuffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair NoBuffering)
-        , testProperty "Partial Payload With Seek Arrives" (prop_UnsafePartialPayloadWithSeekArrives hpair NoBuffering)
+        , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair NoBuffering)
         ]
     , testGroup "unsafeSendFile' (buffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
-        , testProperty "Partial Payload With Seek Arrives" (prop_UnsafePartialPayloadWithSeekArrives hpair (BlockBuffering Nothing))
+        , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair (BlockBuffering Nothing))
         ]
     ]
 
@@ -87,23 +87,23 @@ prop_PayloadArrivesInOrder (p1, p2) payload = monadicIO $ do
 
 prop_PartialPayloadArrives :: (Socket, Socket) -> ByteString -> Property
 prop_PartialPayloadArrives (p1, p2) payload = monadicIO $ do
-    let count = length payload `div` 2
+    count <- pick (choose (0, length payload))
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              sendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (recvAll p2 count) 
     assert (take count payload == payload')
 
-prop_PartialPayloadWithSeekArrives :: (Socket, Socket) -> ByteString -> Property
-prop_PartialPayloadWithSeekArrives (p1, p2) payload = monadicIO $ do
-    let offset = length payload `div` 2
-        count = (length payload) - offset
+prop_PartialPayloadWithOffsetArrives :: (Socket, Socket) -> ByteString -> Property
+prop_PartialPayloadWithOffsetArrives (p1, p2) payload = monadicIO $ do
+    let len = length payload
+    offset <- pick (choose (0, len))
+    let count = len - offset
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
-             hSeek fd AbsoluteSeek (fromIntegral offset)
-             sendFile' p1 fd 0 (fromIntegral count))
+             sendFile' p1 fd (fromIntegral offset) (fromIntegral count))
     payload' <- run (recvAll p2 count)
-    assert (take count payload == payload')
+    assert (take count (drop offset payload) == payload')
 
 test_LargeFileSizeArrives :: (Socket, Socket) -> H.Assertion
 test_LargeFileSizeArrives (p1, p2) =
@@ -148,24 +148,24 @@ prop_UnsafePayloadArrivesInOrder (p1, p2) bufMode payload = monadicIO $ do
 prop_UnsafePartialPayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
 prop_UnsafePartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
-    let count = length payload `div` 2
+    count <- pick (choose (0, length payload))
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
              unsafeSendFile' p1 fd 0 (fromIntegral count))
     payload' <- run (hGet p2 count) 
     assert (take count payload == payload')
 
-prop_UnsafePartialPayloadWithSeekArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
-prop_UnsafePartialPayloadWithSeekArrives (p1, p2) bufMode payload = monadicIO $ do
+prop_UnsafePartialPayloadWithOffsetArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
+prop_UnsafePartialPayloadWithOffsetArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
-    let offset = length payload `div` 2
-        count = (length payload) - offset
+    let len = length payload
+    offset <- pick (choose (0, len))
+    let count = len - offset
     run (withTempFile payload $ \fp -> do
          withBinaryFile fp ReadMode $ \fd -> do
-             hSeek fd AbsoluteSeek (fromIntegral offset)
-             unsafeSendFile' p1 fd 0 (fromIntegral count))
+             unsafeSendFile' p1 fd (fromIntegral offset) (fromIntegral count))
     payload' <- run (hGet p2 count)
-    assert (take count payload == payload')
+    assert (take count (drop offset payload) == payload')
 
 withTempFile :: ByteString -> (FilePath -> IO a) -> IO a
 withTempFile payload fun = do
