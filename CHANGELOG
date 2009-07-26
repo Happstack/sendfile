@@ -1,7 +1,9 @@
   sendfile-0.?
 --------------------------------------------------------------------------------
   * Code simplification / beautification
-  * Added runtime check which will make sure all bytes are sent (or raise an exception)
+  * Fixed a bug where all bytes were not sent with larger files in linux (greater than 5 mb or so)
+  * Added large file support (> 2gb) for Linux
+  * The current handle position will now be ignored in favor of using an offset when using the ' variants
 
   sendfile-0.4
 --------------------------------------------------------------------------------

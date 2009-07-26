@@ -15,8 +15,10 @@ import Network.Socket (Socket(..), fdSocket)
 import System.IO (
     Handle,
     IOMode(..),
+    SeekMode(..),
     hFileSize,
     hFlush,
+    hSeek,
     withBinaryFile
     )
 import System.Posix.Types (Fd(..))
@@ -44,30 +46,35 @@ sendFileMode = "FREEBSD_SENDFILE"
 
 #if defined(PORTABLE_SENDFILE)
 import Data.ByteString.Char8 (hGet, hPutStr)
-import Network.Socket.ByteString (sendAll)
+import Network.Socket.ByteString (send)
 
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 
-sendFile' :: Socket -> Handle -> Int64 -> IO ()
-sendFile' = wrapSendFile' $ \outs inp count -> do
-    sendAll outs =<< hGet inp (fromIntegral count)
-    return count -- haskell implementation simply returns count for nsent
+sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
+sendFile' = wrapSendFile' $ \outs inp off count -> do
+    hSeek inp AbsoluteSeek off
+    rsend outs inp count
+    where rsend _    _   0        = return ()
+          rsend outs inp reqBytes = do
+              let bytes = min 4096 reqBytes :: Integer
+              sbytes <- send outs =<< hGet inp (fromIntegral bytes)
+              rsend outs inp (reqBytes - (fromIntegral sbytes))
 
-unsafeSendFile' :: Handle -> Handle -> Int64 -> IO ()
-unsafeSendFile' = wrapSendFile' $ \outp inp count -> do
+unsafeSendFile' :: Handle -> Handle -> Integer -> Integer -> IO ()
+unsafeSendFile' = wrapSendFile' $ \outp inp off count -> do
+    hSeek inp AbsoluteSeek off
     hPutStr outp =<< hGet inp (fromIntegral count)
     hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
-    return count -- haskell implementation simply returns count for nsent
 #else
-sendFile' :: Socket -> Handle -> Int64 -> Int64 -> IO ()
+sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile' outs inp off count =
     withHandle_ "Network.Socket.SendFile.sendFile'" inp $ \inp' -> do
     let out_fd = Fd (fdSocket outs)
     let in_fd = Fd (haFD inp')
     wrapSendFile' _sendFile out_fd in_fd off count
 
-unsafeSendFile' :: Handle -> Handle -> Int64 -> Int64 -> IO ()
+unsafeSendFile' :: Handle -> Handle -> Integer -> Integer -> IO ()
 unsafeSendFile' outp inp off count = do
     hFlush outp -- flush outp before sending
     withHandle_ "Network.Socket.SendFile.unsafeSendFile'" outp $ \outp' -> do
@@ -78,11 +85,11 @@ unsafeSendFile' outp inp off count = do
 #endif
 
 -- | wraps sendFile' to check arguments
-wrapSendFile' :: (a -> b -> Int64 -> Int64 -> IO ()) -> a -> b -> Int64 -> Int64 -> IO ()
+wrapSendFile' :: Integral i => (a -> b -> i -> i -> IO ()) -> a -> b -> Integer -> Integer -> IO ()
 wrapSendFile' fun outp inp off count
     | count < 0  = error "SendFile - count must be a positive integer"
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
-    | otherwise  = fun outp inp off count
+    | otherwise  = fun outp inp (fromIntegral off) (fromIntegral count)
 
 sendFile :: Socket -> FilePath -> IO ()
 sendFile outs infp = withBinaryFile infp ReadMode $ \inp -> do

@@ -14,17 +14,17 @@ import System.Posix.Types (Fd)
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
 _sendFile out_fd in_fd off count = do
     alloca $ \poff -> do
-    poke poff (fromIntegral off)
+    poke poff off
     rsendfile out_fd in_fd poff count
 
-rsendfile :: Fd -> Fd -> Ptr (#type off_t) -> Int64 -> IO ()
+rsendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO ()
 rsendfile _      _     _    0         = return ()
 rsendfile out_fd in_fd poff remaining = do
     let bytes = min remaining maxBytes
     sbytes <- sendfile out_fd in_fd poff bytes
     rsendfile out_fd in_fd poff (remaining - sbytes)
     
-sendfile :: Fd -> Fd -> Ptr (#type off_t) -> Int64 -> IO Int64
+sendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO Int64
 sendfile out_fd in_fd poff bytes = do
     sbytes <- c_sendfile out_fd in_fd poff (fromIntegral bytes)
     if sbytes <= -1

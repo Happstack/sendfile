@@ -19,13 +19,12 @@ module Network.Socket.SendFile (
     -- * Utility functions
     sendFileMode
     ) where
-import Data.Int (Int64)
 import qualified Network.Socket.SendFile.Internal (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
 import Network.Socket (Socket)
 import System.IO (Handle)
 
-type Offset = Int64
-type ByteCount = Int64
+type Offset = Integer
+type ByteCount = Integer
 
 -- | The simplest interface. Simply give it an output `Socket` and the `FilePath` to the input file.
 sendFile
