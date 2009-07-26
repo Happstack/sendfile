@@ -6,7 +6,7 @@ import Data.Word
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
-import Foreign.Storable(peek, poke)
+import Foreign.Storable(poke)
 import System.Posix.Types (Fd)
 
 #include <sys/sendfile.h>
@@ -18,25 +18,25 @@ _sendFile out_fd in_fd off count = do
     rsendfile out_fd in_fd poff count
 
 rsendfile :: Fd -> Fd -> Ptr (#type off_t) -> Int64 -> IO ()
-rsendfile out_fd in_fd poff 0         = return ()
+rsendfile _      _     _    0         = return ()
 rsendfile out_fd in_fd poff remaining = do
-    let top = fromIntegral (maxBound :: (#type ssize_t)) :: Int64
-        bytes = fromIntegral (min remaining top) :: (#type size_t)
-    sbytes <- fmap fromIntegral (sendfile out_fd in_fd poff (fromIntegral bytes))
-    rsendfile out_fd in_fd poff (remaining - (fromIntegral sbytes))
-      
+    let bytes = min remaining maxBytes
+    sbytes <- sendfile out_fd in_fd poff bytes
+    rsendfile out_fd in_fd poff (remaining - sbytes)
     
-sendfile :: Fd -> Fd -> Ptr (#type off_t) -> (#type size_t) -> IO (#type ssize_t)
+sendfile :: Fd -> Fd -> Ptr (#type off_t) -> Int64 -> IO Int64
 sendfile out_fd in_fd poff bytes = do
-    sbytes <- c_sendfile out_fd in_fd poff bytes
+    sbytes <- c_sendfile out_fd in_fd poff (fromIntegral bytes)
     if sbytes <= -1
-      then do
-        errno <- getErrno
-        case errno of
-            eAGAIN -> sendfile out_fd in_fd poff bytes
-            _      -> throwErrno "Network.Socket.SendFile.Linux"
-      else
-        return sbytes
+      then do errno <- getErrno
+              if errno == eAGAIN
+                then sendfile out_fd in_fd poff bytes
+                else throwErrno "Network.Socket.SendFile.Linux"
+      else return (fromIntegral sbytes)
+
+-- max num of bytes in one send
+maxBytes :: Int64
+maxBytes = fromIntegral (maxBound :: (#type ssize_t))
 
 -- sendfile64 gives LFS support
 foreign import ccall unsafe "sendfile64" c_sendfile
