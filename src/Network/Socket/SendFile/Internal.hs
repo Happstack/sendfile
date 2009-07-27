@@ -8,6 +8,7 @@ module Network.Socket.SendFile.Internal (
     unsafeSendFile',
     ) where
 
+import Prelude hiding (length)
 import Control.Exception (finally)
 import Data.Int (Int64)
 import GHC.Handle (withHandle_)
@@ -48,8 +49,8 @@ sendFileMode = "FREEBSD_SENDFILE"
 
 #if defined(PORTABLE_SENDFILE)
 -- WARNING: mutated handle guarantee is not threadsafe for the portable implementation! (cannot portably duplicate a handle)
-import Data.ByteString.Char8 (hGet, hPutStr)
-import Network.Socket.ByteString (send)
+import Data.ByteString.Char8 (hGet, hPutStr, length)
+import Network.Socket.ByteString (sendAll)
 
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
@@ -64,8 +65,9 @@ sendFile' = wrapSendFile' $ \outs inp off count -> do
     where rsend _    _   0        = return ()
           rsend outs inp reqBytes = do
               let bytes = min 4096 reqBytes :: Integer
-              sbytes <- send outs =<< hGet inp (fromIntegral bytes)
-              rsend outs inp (reqBytes - (fromIntegral sbytes))
+              buf <- hGet inp (fromIntegral bytes)
+              sendAll outs buf
+              rsend outs inp (reqBytes - (fromIntegral $ length buf))
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> Integer -> IO ()
 unsafeSendFile' = wrapSendFile' $ \outp inp off count -> do
