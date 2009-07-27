@@ -8,6 +8,7 @@ import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable(poke)
 import System.Posix.Types (Fd)
+import Control.Concurrent (threadWaitWrite)
 
 #include <sys/sendfile.h>
 
@@ -26,6 +27,7 @@ rsendfile out_fd in_fd poff remaining = do
     
 sendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO Int64
 sendfile out_fd in_fd poff bytes = do
+    threadWaitWrite out_fd
     sbytes <- c_sendfile out_fd in_fd poff (fromIntegral bytes)
     if sbytes <= -1
       then do errno <- getErrno
