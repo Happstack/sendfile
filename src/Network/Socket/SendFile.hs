@@ -1,11 +1,13 @@
 -- | A cross-platform wrapper for sendfile -- this implements an available operating-system call if supported, otherwise it falls back to a portable haskell implementation.
 --
---   Two interfaces are provided for both the unsafe and safe sets of functions. The first interface accepts an output socket\/handle and the path of the file you want to send; sendFile and unsafeSendFile comprise this interface. The second interface accepts an output socket\/handle, a handle to the file you want to send, and the number of bytes you want to send; sendFile' and unsafeSendFile' comprise this interface.
+--   Two interfaces are provided for both the unsafe and safe sets of functions. The first interface accepts an output socket\/handle and the path of the file you want to send; sendFile and unsafeSendFile comprise this interface. The second interface accepts an output socket\/handle, a handle to the file you want to send, an offset, and the number of bytes you want to send; sendFile' and unsafeSendFile' comprise this interface.
 --
---   For consistent read/write behavior with either sendFile' or unsafeSendFile', the input handle should be opened in Binary mode rather than Text mode (especially if you are using hSeek before sending).
+--   For consistent read/write behavior with either sendFile' or unsafeSendFile', the input handle should be opened in Binary mode rather than Text mode.
 --
 
 module Network.Socket.SendFile (
+    ByteCount,
+    Offset,
     -- * Safe functions (recommended)
     sendFile,
     sendFile',
@@ -23,7 +25,10 @@ import qualified Network.Socket.SendFile.Internal (sendFile, sendFile', sendFile
 import Network.Socket (Socket)
 import System.IO (Handle)
 
+-- | The file offset (in bytes) to start from
 type Offset = Integer
+
+-- | The length (in bytes) which should be sent
 type ByteCount = Integer
 
 -- | The simplest interface. Simply give it an output `Socket` and the `FilePath` to the input file.
@@ -33,7 +38,7 @@ sendFile
     -> IO ()
 sendFile = Network.Socket.SendFile.Internal.sendFile
 
--- | A more powerful interface than sendFile, sendFile' accepts a `Handle` for the input file instead of a `FilePath` and the number of bytes you would like to read; this number must be a positive integer. This unlocks the full potential `Handle`(s). For instance, if you wanted to start reading from a particular offset in the file you could utilize `hSeek`; if you needed the file size you could use 'hFileSize'.
+-- | A more powerful interface than sendFile, sendFile' accepts a `Handle` for the input file instead of a `FilePath`, a starting offset, and the bytecount to send; the offset and the count must be a positive integer. The initial position of the input file handle matters not since the offset is absolute, and the final position may be different depending on the platform -- no assumptions can be made.
 sendFile'
     :: Socket    -- ^ The output socket
     -> Handle    -- ^ The input file handle
