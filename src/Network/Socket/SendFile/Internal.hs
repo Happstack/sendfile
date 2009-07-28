@@ -7,7 +7,7 @@ module Network.Socket.SendFile.Internal (
     unsafeSendFile',
     ) where
 #if defined(PORTABLE_SENDFILE)
-import Data.ByteString.Char8 (hGet, hPutStr, length)
+import Data.ByteString.Char8 (hGet, hPutStr, length, ByteString)
 import Network.Socket.ByteString (sendAll)
 import Network.Socket (Socket(..))
 import Prelude hiding (length)
@@ -48,19 +48,25 @@ sendFileMode = "PORTABLE_SENDFILE"
 sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile' = wrapSendFile' $ \outs inp off count -> do
     hSeek inp AbsoluteSeek off
-    rsend outs inp count
-    where rsend _    _   0        = return ()
-          rsend outs inp reqBytes = do
-              let bytes = min 32768 reqBytes :: Integer
-              buf <- hGet inp (fromIntegral bytes)
-              sendAll outs buf
-              rsend outs inp (reqBytes - (fromIntegral $ length buf))
+    rsend (sendAll outs) inp count
 
 unsafeSendFile' :: Handle -> Handle -> Integer -> Integer -> IO ()
 unsafeSendFile' = wrapSendFile' $ \outp inp off count -> do
     hSeek inp AbsoluteSeek off
-    hPutStr outp =<< hGet inp (fromIntegral count)
+    rsend (hPutStr outp) inp count
     hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
+
+rsend :: (ByteString -> IO ()) -> Handle -> Integer -> IO ()
+rsend write inp n = do
+  loop n
+  where
+    loop 0        = return ()
+    loop reqBytes = do
+      let bytes = min 32768 reqBytes :: Integer
+      buf <- hGet inp (fromIntegral bytes)
+      write buf
+      loop $ reqBytes - (fromIntegral $ length buf)
+
 #else
 sendFile' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile' outs inp off count =
