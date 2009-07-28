@@ -11,6 +11,8 @@
     beginning.
   * The portable implementation is now more reliable and memory-efficient
     thanks to the work done by Bardur Arantsson.
+  * The Win32 implementation is more reliable now, as TransmitFile is now called
+    with 'foreign import stdcall safe' once again.
 
   sendfile-0.4
 --------------------------------------------------------------------------------

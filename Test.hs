@@ -2,6 +2,7 @@
 -- [ required libs from hackage ]
 -- QuickCheck-2.1.0.1
 -- test-framework-quickcheck-0.2.4
+-- NOTE: do a 'runghc GenLargeFile.hs' first, it is needed for the test
 import Control.Concurrent (forkIO)
 import Control.Exception (bracket, finally)
 import Data.ByteString.Char8 (append, drop, ByteString, hGet, hPut, length, pack, take)
@@ -11,7 +12,7 @@ import Network.Socket.ByteString (recv, sendAll)
 import Network.Socket (Socket)
 import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair, recvAll)
 import System.Directory (createDirectoryIfMissing, removeFile)
-import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSetBuffering, hSetFileSize, hSeek, openBinaryTempFile, withBinaryFile)
+import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSetBuffering, hSeek, openBinaryTempFile, withBinaryFile)
 import qualified Test.HUnit as H
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -122,9 +123,9 @@ prop_HandlePositionIgnored (p1, p2) payload = monadicIO $ do
 
 test_LargeFileSizeArrives :: (Socket, Socket) -> H.Assertion
 test_LargeFileSizeArrives (p1, p2) =
-    withBinaryFile "large.txt" ReadWriteMode $ \h -> do
-    hSetFileSize h largeLen
-    forkIO (sendFile' p1 h 0 (fromIntegral largeLen))
+    -- file is assumed to be 3gb, and is already created (use GenLargeFile.hs)
+    withBinaryFile "large.txt" ReadMode $ \h -> do
+    forkIO (sendFile' p1 h 0 largeLen)
     receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
     H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
     where largeLen = 3 * 1024 * 1024 * 1024
