@@ -48,10 +48,12 @@ testWith spair hpair =
     , testGroup "unsafeSendFile' (unbuffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair NoBuffering)
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair NoBuffering)
+        , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair NoBuffering)
         ]
     , testGroup "unsafeSendFile' (buffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair (BlockBuffering Nothing))
+        , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair (BlockBuffering Nothing))
         ]
     ]
 
@@ -197,6 +199,20 @@ prop_UnsafeHandlePositionIgnored (p1, p2) bufMode payload = monadicIO $ do
              unsafeSendFile' p1 fd (fromIntegral offset) (fromIntegral count))
     payload' <- run (hGet p2 count)
     assert (take count (drop offset payload) == payload')
+    
+test_UnsafeLargeFileSizeArrives :: (Handle, Handle) -> BufferMode -> H.Assertion
+test_UnsafeLargeFileSizeArrives (p1, p2) bufMode = do
+    hSetBuffering p1 bufMode
+    -- file is assumed to be 3gb, and is already created (use GenLargeFile.hs)
+    withBinaryFile "large.txt" ReadMode $ \h -> do
+    forkIO (unsafeSendFile' p1 h 0 largeLen)
+    receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
+    H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
+    where largeLen = 3 * 1024 * 1024 * 1024
+          recvCountBytes _    0 = return 0
+          recvCountBytes h len = do
+              recvLen <- fmap length (hGet h 4194304)
+              fmap (recvLen +) (recvCountBytes h (len - recvLen))
 
 withTempFile :: ByteString -> (FilePath -> IO a) -> IO a
 withTempFile payload fun = do
