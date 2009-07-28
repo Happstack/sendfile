@@ -1,9 +1,14 @@
   sendfile-0.?
 --------------------------------------------------------------------------------
   * Code simplification / beautification
-  * Fixed a bug where all bytes were not sent with larger files in linux (greater than 5 mb or so)
-  * Added large file support (> 2gb) for Linux
-  * The current handle position will now be ignored in favor of using an offset when using the ' variants
+  * Fixed a bug where all bytes were not sent with larger files in linux
+    (greater than 5 mb or so)
+  * Added large file support (> 2gb) for Linux, Win32, and Portable
+  * The current handle position will now be ignored in favor of using an offset
+    when using the ' variants. There is no guarantee that an input file Handle
+    will not be mutated; only a guarantee that sendFile' and unsafeSendFile' do
+    not care about the starting position -- they will always start from the
+    beginning.
 
   sendfile-0.4
 --------------------------------------------------------------------------------
