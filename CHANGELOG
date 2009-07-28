@@ -9,6 +9,8 @@
     will not be mutated; only a guarantee that sendFile' and unsafeSendFile' do
     not care about the starting position -- they will always start from the
     beginning.
+  * The portable implementation is now more reliable and memory-efficient
+    thanks to the work done by Bardur Arantsson.
 
   sendfile-0.4
 --------------------------------------------------------------------------------
