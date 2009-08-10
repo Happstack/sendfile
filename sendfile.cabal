@@ -4,7 +4,8 @@ stability:     provisional
 synopsis:      A portable sendfile library
 description:   A library which exposes zero-copy sendfile functionality in a portable way. If a platform does not support sendfile, a fallback implementation in haskell is provided.
                .
-               Currently supported platforms: Windows 2000+ (Native), Linux 2.6+ (Native), FreeBSD (Untested!), Everything else (Haskell).
+               Currently supported platforms: Windows 2000+ (Native), Linux 2.6+ (Native), FreeBSD (Untested!),
+               OS-X 10.5+ (limited testing), and Everything else (Haskell).
 
 license:       BSD3
 license-file:  LICENSE
@@ -31,23 +32,27 @@ library
 
     ghc-options: -Wall
 
-    if os(windows) && !flag(portable)
-      cpp-options: -DWIN32_SENDFILE
-      build-depends: Win32 >= 2.2.0.0 && < 2.3
-      extra-libraries: mswsock
-      other-modules: Network.Socket.SendFile.Win32
+    if flag(portable) || !( os(windows) || os(linux) || os(freebsd) || os(darwin) )
+      cpp-options: -DPORTABLE_SENDFILE
+      build-depends: bytestring >= 0.9.1.4 && < 0.10,
+                     network-bytestring >= 0.1.1.3 && < 0.2
     else
-      if os(linux) && !flag(portable)
-        cpp-options: -DLINUX_SENDFILE
-        other-modules: Network.Socket.SendFile.Linux
+      if os(windows)
+        cpp-options: -DWIN32_SENDFILE
+        build-depends: Win32 >= 2.2.0.0 && < 2.3
+        extra-libraries: mswsock
+        other-modules: Network.Socket.SendFile.Win32
       else
-        if os(freebsd) && !flag(portable)
-          cpp-options: -DFREEBSD_SENDFILE
-          other-modules: Network.Socket.SendFile.FreeBSD
+        if os(linux)
+          cpp-options: -DLINUX_SENDFILE
+          other-modules: Network.Socket.SendFile.Linux
         else
-          cpp-options: -DPORTABLE_SENDFILE
-          build-depends: bytestring >= 0.9.1.4 && < 0.10,
-                         network-bytestring >= 0.1.1.3 && < 0.2
+          if os(freebsd)
+            cpp-options: -DFREEBSD_SENDFILE
+            other-modules: Network.Socket.SendFile.FreeBSD
+          else
+            cpp-options: -DDARWIN_SENDFILE
+            other-modules: Network.Socket.SendFile.Darwin
 
 source-repository head
     type:     darcs

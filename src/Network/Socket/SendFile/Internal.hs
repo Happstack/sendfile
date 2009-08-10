@@ -41,6 +41,13 @@ sendFileMode :: String
 sendFileMode = "FREEBSD_SENDFILE"
 #endif
 
+#if defined(DARWIN_SENDFILE)
+import Network.Socket.SendFile.Darwin (_sendFile)
+
+sendFileMode :: String
+sendFileMode = "DARWIN_SENDFILE"
+#endif
+
 #if defined(PORTABLE_SENDFILE)
 sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"

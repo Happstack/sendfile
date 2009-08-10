@@ -63,7 +63,9 @@ unsafeSendFile'
     -> IO ()
 unsafeSendFile' = Network.Socket.SendFile.Internal.unsafeSendFile'
 
--- | Returns the mode that sendfile was compiled with. Mainly for debugging use. Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE', and 'PORTABLE_SENDFILE'.
+-- | Returns the mode that sendfile was compiled with. Mainly for debugging use.
+-- | Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE',
+-- | 'DARWIN_SENDFILE', and 'PORTABLE_SENDFILE'.
 sendFileMode :: String -- ^ The mode that sendfile was compiled with
 sendFileMode = Network.Socket.SendFile.Internal.sendFileMode
 
