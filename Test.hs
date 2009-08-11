@@ -48,11 +48,13 @@ testWith spair hpair =
     , testGroup "unsafeSendFile' (unbuffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair NoBuffering)
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair NoBuffering)
+        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair NoBuffering)
         , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair NoBuffering)
         ]
     , testGroup "unsafeSendFile' (buffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair (BlockBuffering Nothing))
+        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair (BlockBuffering Nothing))
         , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair (BlockBuffering Nothing))
         ]
     ]
