@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-module GenLargeFile where
+module Main  where
 import System.IO (Handle, IOMode(..), hFlush, hPutStr, hPutChar, stdout, withBinaryFile)
 import System.Random (StdGen, getStdGen, randoms)
 
