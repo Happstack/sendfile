@@ -5,7 +5,7 @@ module Network.Socket.SendFile.Internal (
     sendFileMode,
     ) where
 #if defined(PORTABLE_SENDFILE)
-import Data.ByteString.Char8 (hGet, hPutStr, length, ByteString)
+import Data.ByteString.Char8 (hGet, length, ByteString)
 import Network.Socket.ByteString (sendAll)
 import Network.Socket (Socket(..))
 import Prelude hiding (length)
@@ -64,7 +64,7 @@ sendFileMode :: String
 sendFileMode = "PORTABLE_SENDFILE"
 
 sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO ()
-sendFile' = wrapSendFile' $ \outs inp off count -> do
+sendFile'' = wrapSendFile' $ \outs inp off count -> do
     hSeek inp AbsoluteSeek off
     rsend (sendAll outs) inp count
 
@@ -104,6 +104,7 @@ wrapSendFile' fun outp inp off count
     | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
     | otherwise  = fun outp inp (fromIntegral off) (fromIntegral count)
 
+#if !defined(PORTABLE_SENDFILE)
 handleToFd :: Handle -> IO Fd
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 611
@@ -131,5 +132,6 @@ handleToFd h = withHandle "handleToFd" h $ \ h_ -> do
     -- to closed, is enough to disable the finalizer that
     -- eventually is run on the Handle.
   return (h_{haFD= (-1),haType=ClosedHandle}, Fd (fromIntegral fd))
+#endif
 #endif
 #endif
