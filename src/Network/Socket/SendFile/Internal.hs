@@ -2,10 +2,12 @@
 module Network.Socket.SendFile.Internal (
     sendFile,
     sendFile',
+    unsafeSendFile,
+    unsafeSendFile',
     sendFileMode,
     ) where
 #if defined(PORTABLE_SENDFILE)
-import Data.ByteString.Char8 (hGet, length, ByteString)
+import Data.ByteString.Char8 (hGet, hPutStr, length, ByteString)
 import Network.Socket.ByteString (sendAll)
 import Network.Socket (Socket(..))
 import Prelude hiding (length)
@@ -23,6 +25,7 @@ import qualified GHC.IO.FD as FD
 -- import qualified GHC.IO.Handle.FD as FD
 import GHC.IO.Exception
 import Data.Typeable (cast)
+import System.IO (hFlush)
 import System.IO.Error
 #else
 import GHC.IOBase
@@ -68,6 +71,12 @@ sendFile'' = wrapSendFile' $ \outs inp off count -> do
     hSeek inp AbsoluteSeek off
     rsend (sendAll outs) inp count
 
+unsafeSendFile'' :: Handle -> Handle -> Integer -> Integer -> IO ()
+unsafeSendFile'' = wrapSendFile' $ \outp inp off count -> do
+    hSeek inp AbsoluteSeek off
+    rsend (hPutStr outp) inp count
+    hFlush outp -- match the behavior that all data is "flushed to the os" of native implementations
+
 rsend :: (ByteString -> IO ()) -> Handle -> Integer -> IO ()
 rsend write inp n = do
   loop n
@@ -84,6 +93,14 @@ sendFile'' outs inp off count =
     do let out_fd = Fd (fdSocket outs)
        in_fd <- handleToFd inp
        wrapSendFile' _sendFile out_fd in_fd off count
+
+unsafeSendFile'' :: Handle -> Handle -> Integer -> Integer -> IO ()
+unsafeSendFile'' outp inp off count =
+    do hFlush outp
+       out_fd <- handleToFd outp
+       in_fd  <- handleToFd inp
+       wrapSendFile' _sendFile out_fd in_fd off count
+    
 #endif
 
 sendFile :: Socket -> FilePath -> IO ()
@@ -95,6 +112,22 @@ sendFile' :: Socket -> FilePath -> Integer -> Integer -> IO ()
 sendFile' outs infp offset count =
     withBinaryFile infp ReadMode $ \inp ->
         sendFile'' outs inp offset count
+
+unsafeSendFile :: Handle -> FilePath -> IO ()
+unsafeSendFile outp infp = 
+    withBinaryFile infp ReadMode $ \inp -> do
+      count <- hFileSize inp
+      unsafeSendFile'' outp inp 0 count
+
+unsafeSendFile'
+    :: Handle    -- ^ The output handle
+    -> FilePath  -- ^ The input filepath
+    -> Integer    -- ^ The offset to start at
+    -> Integer -- ^ The number of bytes to send
+    -> IO ()
+unsafeSendFile' outp infp offset count =
+    withBinaryFile infp ReadMode $ \inp -> do
+      unsafeSendFile'' outp inp offset count
           
 -- | wraps sendFile' to check arguments
 wrapSendFile' :: Integral i => (a -> b -> i -> i -> IO ()) -> a -> b -> Integer -> Integer -> IO ()
@@ -108,30 +141,16 @@ wrapSendFile' fun outp inp off count
 handleToFd :: Handle -> IO Fd
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 611
-handleToFd h = withHandle "handleToFd" h $ \ h_@Handle__{haType=_,..} -> do
+handleToFd h = withHandle "handleToFd" h $ \ Handle__{..} -> do
   case cast haDevice of
     Nothing -> ioError (ioeSetErrorString (mkIOError IllegalOperation
                                            "handleToFd" (Just h) Nothing) 
                         "handle is not a file descriptor")
     Just fd -> do
-     -- converting a Handle into an Fd effectively means
-     -- letting go of the Handle; it is put into a closed
-     -- state as a result. 
-     flushWriteBuffer h_
-     FD.release fd
-     return (Handle__{haType=ClosedHandle,..}, Fd (fromIntegral (FD.fdFD fd)))
+     return (Handle__{..} , Fd (fromIntegral (FD.fdFD fd)))
 #else
 handleToFd h = withHandle "handleToFd" h $ \ h_ -> do
-  -- converting a Handle into an Fd effectively means
-  -- letting go of the Handle; it is put into a closed
-  -- state as a result. 
-  let fd = haFD h_
-  flushWriteBufferOnly h_
-  unlockFile (fromIntegral fd)
-    -- setting the Handle's fd to (-1) as well as its 'type'
-    -- to closed, is enough to disable the finalizer that
-    -- eventually is run on the Handle.
-  return (h_{haFD= (-1),haType=ClosedHandle}, Fd (fromIntegral fd))
+  return (h_, Fd (fromIntegral (haFD h_)))
 #endif
 #endif
 #endif

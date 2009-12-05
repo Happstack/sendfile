@@ -7,12 +7,12 @@ import Control.Concurrent (forkIO)
 import Control.Exception (bracket, finally)
 import Data.ByteString.Char8 (append, drop, ByteString, hGet, hPut, length, pack, take)
 import Prelude hiding (catch, drop, length, take)
-import Network.Socket.SendFile (sendFile, sendFile', sendFileMode{- , unsafeSendFile, unsafeSendFile' -})
+import Network.Socket.SendFile (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
 import Network.Socket.ByteString (recv, sendAll)
 import Network.Socket (Socket)
 import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair, recvAll)
 import System.Directory (createDirectoryIfMissing, removeFile)
-import System.IO (BufferMode(..), IOMode(..), SeekMode(..), Handle, hClose, hFlush, hSetBuffering, hSeek, openBinaryTempFile, withBinaryFile)
+import System.IO (BufferMode(..), {- IOMode(..), SeekMode(..), -} Handle, hClose, hFlush, hSetBuffering, {- hSeek , -} openBinaryTempFile{- , withBinaryFile -})
 import qualified Test.HUnit as H
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -27,38 +27,41 @@ testWith spair hpair =
         [ testProperty "Socket Pair Connected" (prop_SocketPairConnected spair)
         , testProperty "Handle Pair Connected" (prop_HandlePairConnected hpair)
         ]
+
     , testGroup "sendFile"
         [ testProperty "Payload Arrives" (prop_PayloadArrives spair)
         , testProperty "Payload Arrives In Order" (prop_PayloadArrivesInOrder spair)
         ]
+
     , testGroup "sendFile'"
         [ testProperty "Partial Payload Arrives" (prop_PartialPayloadArrives spair)
         , testProperty "Partial Payload with Offset Arrives" (prop_PartialPayloadWithOffsetArrives spair)
 --        , testProperty "Handle Position Ignored" (prop_HandlePositionIgnored spair)
         , testCase "Large Filesize Arrives" (test_LargeFileSizeArrives spair)
         ]
-{-
+
     , testGroup "unsafeSendFile (unbuffered)"
         [ testProperty "Payload Arrives" (prop_UnsafePayloadArrives hpair NoBuffering)
         , testProperty "Payload Arrives In Order" (prop_UnsafePayloadArrivesInOrder hpair NoBuffering)
         ]
+
     , testGroup "unsafeSendFile (buffered)"
         [ testProperty "Payload Arrives" (prop_UnsafePayloadArrives hpair (BlockBuffering Nothing))
         , testProperty "Payload Arrives In Order" (prop_UnsafePayloadArrivesInOrder hpair (BlockBuffering Nothing))
         ]
+
     , testGroup "unsafeSendFile' (unbuffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair NoBuffering)
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair NoBuffering)
-        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair NoBuffering)
+--        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair NoBuffering)
         , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair NoBuffering)
         ]
     , testGroup "unsafeSendFile' (buffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair (BlockBuffering Nothing))
-        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair (BlockBuffering Nothing))
+--        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair (BlockBuffering Nothing))
         , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair (BlockBuffering Nothing))
         ]
--}
     ]
 
 main :: IO ()
@@ -137,10 +140,11 @@ test_LargeFileSizeArrives (p1, p2) = do
           recvCountBytes sock len = do
               recvLen <- fmap length (recv sock 4194304)
               fmap (recvLen +) (recvCountBytes sock (len - recvLen))
-{-
+
 --------------------------------------------------------------------------------
 -- unsafeSendFile & unsafeSendFile'                                           --
 --------------------------------------------------------------------------------
+
 prop_UnsafePayloadArrives :: (Handle, Handle) -> BufferMode -> ByteString -> Property
 prop_UnsafePayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
@@ -170,8 +174,7 @@ prop_UnsafePartialPayloadArrives (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
     count <- pick (choose (0, length payload))
     run (withTempFile payload $ \fp -> do
-         withBinaryFile fp ReadMode $ \fd -> do
-             unsafeSendFile' p1 fd 0 (fromIntegral count))
+             unsafeSendFile' p1 fp 0 (fromIntegral count))
     payload' <- run (hGet p2 count) 
     assert (take count payload == payload')
 
@@ -182,11 +185,10 @@ prop_UnsafePartialPayloadWithOffsetArrives (p1, p2) bufMode payload = monadicIO 
     offset <- pick (choose (0, len))
     let count = len - offset
     run (withTempFile payload $ \fp -> do
-         withBinaryFile fp ReadMode $ \fd -> do
-             unsafeSendFile' p1 fd (fromIntegral offset) (fromIntegral count))
+             unsafeSendFile' p1 fp (fromIntegral offset) (fromIntegral count))
     payload' <- run (hGet p2 count)
     assert (take count (drop offset payload) == payload')
-
+{-
 prop_UnsafeHandlePositionIgnored :: (Handle, Handle) -> BufferMode -> ByteString -> Property
 prop_UnsafeHandlePositionIgnored (p1, p2) bufMode payload = monadicIO $ do
     run (hSetBuffering p1 bufMode)
@@ -201,13 +203,13 @@ prop_UnsafeHandlePositionIgnored (p1, p2) bufMode payload = monadicIO $ do
              unsafeSendFile' p1 fd (fromIntegral offset) (fromIntegral count))
     payload' <- run (hGet p2 count)
     assert (take count (drop offset payload) == payload')
-    
+-}
 test_UnsafeLargeFileSizeArrives :: (Handle, Handle) -> BufferMode -> H.Assertion
 test_UnsafeLargeFileSizeArrives (p1, p2) bufMode = do
     hSetBuffering p1 bufMode
     -- file is assumed to be 3gb, and is already created (use GenLargeFile.hs)
-    withBinaryFile "large.txt" ReadMode $ \h -> do
-    forkIO (unsafeSendFile' p1 h 0 largeLen)
+--    withBinaryFile "large.txt" ReadMode $ \h -> do
+    forkIO (unsafeSendFile' p1 "large.txt" 0 largeLen)
     receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
     H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
     where largeLen = 3 * 1024 * 1024 * 1024
@@ -215,7 +217,7 @@ test_UnsafeLargeFileSizeArrives (p1, p2) bufMode = do
           recvCountBytes h len = do
               recvLen <- fmap length (hGet h 4194304)
               fmap (recvLen +) (recvCountBytes h (len - recvLen))
--}
+
 withTempFile :: ByteString -> (FilePath -> IO a) -> IO a
 withTempFile payload fun = do
       fp <- bracket

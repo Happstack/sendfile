@@ -11,11 +11,14 @@ module Network.Socket.SendFile (
     -- * Safe functions (recommended)
     sendFile,
     sendFile',
+    unsafeSendFile,
+    unsafeSendFile',
     -- * Utility functions
     sendFileMode
     ) where
-import qualified Network.Socket.SendFile.Internal (sendFile, sendFile', sendFileMode)
+import qualified Network.Socket.SendFile.Internal (sendFile, sendFile', unsafeSendFile, unsafeSendFile', sendFileMode)
 import Network.Socket (Socket)
+import System.IO (Handle)
 
 -- | The file offset (in bytes) to start from
 type Offset = Integer
@@ -39,8 +42,25 @@ sendFile'
     -> IO ()
 sendFile' = Network.Socket.SendFile.Internal.sendFile'
 
+-- | The unsafe version of sendFile which accepts a `Handle` instead of a `Socket` for the output.  It will flush the output handle before sending any file data.
+unsafeSendFile
+    :: Handle   -- ^ The output handle
+    -> FilePath -- ^ The path where the input file resides
+    -> IO ()
+unsafeSendFile = Network.Socket.SendFile.Internal.unsafeSendFile
+
+-- | The unsafe version of sendFile' which accepts a `Handle` instead of a `Socket` for the output. It will flush the output handle before sending any file data.
+unsafeSendFile'
+    :: Handle    -- ^ The output handle
+    -> FilePath  -- ^ The input filepath
+    -> Offset    -- ^ The offset to start at
+    -> ByteCount -- ^ The number of bytes to send
+    -> IO ()
+unsafeSendFile' = Network.Socket.SendFile.Internal.unsafeSendFile'
+
 -- | Returns the mode that sendfile was compiled with. Mainly for debugging use.
 -- | Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE',
 -- | 'DARWIN_SENDFILE', and 'PORTABLE_SENDFILE'.
 sendFileMode :: String -- ^ The mode that sendfile was compiled with
 sendFileMode = Network.Socket.SendFile.Internal.sendFileMode
+
