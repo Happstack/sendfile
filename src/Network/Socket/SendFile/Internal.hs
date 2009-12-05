@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, RecordWildCards #-}
 module Network.Socket.SendFile.Internal (
     sendFile,
     sendFile',
@@ -17,13 +17,13 @@ import System.Posix.Types (Fd(..))
 #endif
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 611
-import GHC.IO.Handle
-import GHC.IO.Handle.Internals
-import GHC.IO.Handle.Types
+import GHC.IO.Handle.Internals (withHandle, flushWriteBuffer)
+import GHC.IO.Handle.Types (Handle__(..), HandleType(..))
 import qualified GHC.IO.FD as FD
-import qualified GHC.IO.Handle.FD as FD
+-- import qualified GHC.IO.Handle.FD as FD
 import GHC.IO.Exception
 import Data.Typeable (cast)
+import System.IO.Error
 #else
 import GHC.IOBase
 import GHC.Handle hiding (fdToHandle)
