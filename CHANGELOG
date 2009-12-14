@@ -4,7 +4,7 @@
     seems like the only sensible way to do things for the new IO system in 
     GHC 6.12. Sorry about the breakage.
   * Added support for GHC 6.12.x
-  * Added support for OS X
+  * Added support for OS X (contributed by Douglas Burke)
 
   sendfile-0.5
 --------------------------------------------------------------------------------
