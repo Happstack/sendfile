@@ -1,3 +1,11 @@
+  sendfile-0.6
+--------------------------------------------------------------------------------
+  * API functions now take FilePath instead of Handle as source arguement. This
+    seems like the only sensible way to do things for the new IO system in 
+    GHC 6.12. Sorry about the breakage.
+  * Added support for GHC 6.12.x
+  * Added support for OS X
+
   sendfile-0.5
 --------------------------------------------------------------------------------
   * Code simplification / beautification
