@@ -134,7 +134,7 @@ wrapSendFile' :: Integral i => (a -> b -> i -> i -> IO ()) -> a -> b -> Integer 
 wrapSendFile' fun outp inp off count
     | off < 0    = error "SendFile - offset must be a positive integer"
     | count < 0  = error "SendFile - count must be a positive integer"
-    | count == 0 = return () -- Send nothing -- why do the work? Also, Windows treats '0' as 'send the whole file'.
+    | count == 0 = return () -- Send nothing -- why do the work? Also, Windows and FreeBSD treat '0' as 'send the whole file'.
     | otherwise  = fun outp inp (fromIntegral off) (fromIntegral count)
 
 #if !defined(PORTABLE_SENDFILE)
