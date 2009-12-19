@@ -24,7 +24,7 @@ rsendfile out_fd in_fd off remaining sbytes =
 sendfile :: Fd -> Fd -> COff -> CSize -> Ptr COff -> COff -> IO COff
 sendfile out_fd in_fd off count sbytes totalSent =
     do threadWaitWrite out_fd
-       res <- c_sendfile_freebsd out_fd in_fd off count nullPtr sbytes 0
+       res <- c_sendfile_freebsd in_fd out_fd off count nullPtr sbytes 0
        if (res == 0)
           then do nbytes <- peek sbytes
                   return (totalSent + nbytes)
