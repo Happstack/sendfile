@@ -2,8 +2,8 @@ module SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePai
 import Control.Concurrent
 import Control.Exception (bracket)
 import Data.ByteString.Char8 (ByteString, append, empty, hGet, hPut, length, pack)
-import Network (PortID(..), Socket, listenOn, sClose)
-import Network.Socket (Family(..), SockAddr(..), SocketType(..), accept, aNY_PORT, connect, defaultProtocol, getSocketName, inet_addr, socket, socketPort, socketToHandle)
+import Network (PortID(..), Socket, sClose)
+import Network.Socket (Family(..), SockAddr(..), SocketType(..), PortNumber(PortNum), accept, aNY_PORT, bindSocket, connect, defaultProtocol, getSocketName, inet_addr, iNADDR_ANY, listen, socket, socketPort, socketToHandle)
 import Network.Socket.ByteString (recv, sendAll)
 import Prelude hiding (length)
 import Test.QuickCheck
@@ -22,18 +22,19 @@ accept' :: Socket -> IO Socket
 accept' service = fmap (\(s,_) -> s) (accept service)
 
 socketPair :: IO (Socket, Socket)
-socketPair = bracket
-    (listenOn (PortNumber aNY_PORT))
-    (sClose)
-    (\svc -> do port <- socketPort svc
-                mp1 <- newEmptyMVar
-                forkIO (accept' svc >>= putMVar mp1)
-                p2 <- socket AF_INET Stream defaultProtocol
-                port <- socketPort svc
-                addr <- inet_addr "127.0.0.1"
-                connect p2 (SockAddrInet port addr)
-                p1 <- takeMVar mp1
-                return (p1, p2))
+socketPair =
+  bracket (socket AF_INET Stream defaultProtocol)
+  (sClose)
+  (\s ->do bindSocket s (SockAddrInet aNY_PORT iNADDR_ANY)
+           listen s 7
+           port <- socketPort s
+           mp1 <- newEmptyMVar
+           forkIO (accept' s >>= putMVar mp1)
+           p2 <- socket AF_INET Stream defaultProtocol
+           addr <- inet_addr "127.0.0.1"
+           connect p2 (SockAddrInet port addr)
+           p1 <- takeMVar mp1
+           return (p1, p2))
 
 handlePair :: IO (Handle, Handle)
 handlePair = do
