@@ -1,3 +1,7 @@
+  sendfile-0.6.2
+--------------------------------------------------------------------------------
+  * Fix error on Darwin where offset was not udpated after EAGAIN
+
   sendfile-0.6
 --------------------------------------------------------------------------------
   * API functions now take FilePath instead of Handle as source arguement. This

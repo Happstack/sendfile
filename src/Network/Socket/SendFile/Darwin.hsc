@@ -51,7 +51,7 @@ sendfile out_fd in_fd pbytes off bytes ctr = do
             if errno == eAGAIN
               -- is it correct to reduce bytes by nsent here?
               then let nremaining = max 0 (bytes - (fromIntegral nsent))
-                   in sendfile out_fd in_fd pbytes off nremaining (ctr + (fromIntegral nsent))
+                   in sendfile out_fd in_fd pbytes (off + nsent) nremaining (ctr + (fromIntegral nsent))
               else throwErrno "Network.Socket.SendFile.Darwin"
 
 -- max num of bytes in one send

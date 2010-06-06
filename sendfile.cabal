@@ -1,5 +1,5 @@
 name:          sendfile
-version:       0.6.1
+version:       0.6.2
 stability:     provisional
 synopsis:      A portable sendfile library
 description:   A library which exposes zero-copy sendfile functionality in a portable way. If a platform does not support sendfile, a fallback implementation in haskell is provided.
@@ -9,7 +9,7 @@ description:   A library which exposes zero-copy sendfile functionality in a por
 license:       BSD3
 license-file:  LICENSE
 author:        Matthew Elder <matt@mattelder.org>
-maintainer:    Matthew Elder <matt@mattelder.org>
+maintainer:    Jeremy Shaw <jeremy@n-heptane.com>
 homepage:      http://patch-tag.com/r/mae/sendfile
 category:      Network
 build-type:    Simple
