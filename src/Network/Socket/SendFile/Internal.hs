@@ -206,15 +206,15 @@ unsafeSendFileIterWith'' stepper outp inp blockSize off count =
 withFd :: Handle -> (Fd -> IO a) -> IO a
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 611
-withFd h f = withHandle_ "handleToFd" h $ \ Handle__{..} -> do
+withFd h f = withHandle_ "withFd" h $ \ Handle__{..} -> do
   case cast haDevice of
     Nothing -> ioError (ioeSetErrorString (mkIOError IllegalOperation
-                                           "handleToFd" (Just h) Nothing) 
+                                           "withFd" (Just h) Nothing)
                         "handle is not a file descriptor")
     Just fd -> f (Fd (fromIntegral (FD.fdFD fd)))
 #else
 withFd h f = 
-    withHandle_ "handleToFd" h $ \ h_ ->
+    withHandle_ "withFd" h $ \ h_ ->
       f (Fd (fromIntegral (haFD h_)))
 #endif
 #endif
