@@ -54,7 +54,7 @@ sendfile out_fd in_fd off count =
 -- NOTE: should we retry automatically on EINTR (but not EAGAIN)
 sendfileI :: Fd -> Fd -> COff -> CSize -> Ptr COff -> IO (Bool, COff)
 sendfileI out_fd in_fd off count sbytes =
-    do status <- c_sendfile in_fd out_fd off count sbytes
+    do status <- c_sendfile out_fd in_fd off count sbytes
        if (status == 0)
           then do nsent <- peek sbytes
                   return (False, nsent)
