@@ -59,7 +59,7 @@ sendfile out_fd in_fd off bytes =
 -- low-level wrapper around linux sendfile
 sendfileI :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO (Bool, Int64)
 sendfileI out_fd in_fd poff bytes = do
-    sbytes <- c_sendfile out_fd in_fd poff (fromIntegral bytes)
+    sbytes <- {-# SCC "c_sendfile" #-} c_sendfile out_fd in_fd poff (fromIntegral bytes)
     if sbytes <= -1
       then do errno <- getErrno
               if errno == eAGAIN
