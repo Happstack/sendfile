@@ -10,7 +10,6 @@ import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (peek, poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd)
-import Control.Concurrent (threadWaitWrite)
 
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
 _sendFile out_fd in_fd off count = 
@@ -25,8 +24,7 @@ sendFileIter :: Fd -- ^ file descriptor corresponding to network socket
              -> Int64 -- ^ total number of bytes to send
              -> IO Iter
 sendFileIter out_fd in_fd blockSize off remaining =
-    alloca $ \len -> 
-        sendFileIterI out_fd in_fd (min blockSize maxBytes) off remaining len
+        sendFileIterI out_fd in_fd (min blockSize maxBytes) off remaining
 
 sendFileIterI :: Fd -- ^ file descriptor corresponding to network socket
               -> Fd -- ^ file descriptor corresponding to file

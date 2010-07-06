@@ -60,14 +60,14 @@ sendFileMode = "LINUX_SENDFILE"
 #endif
 
 #if defined(FREEBSD_SENDFILE)
-import Network.Socket.SendFile.FreeBSD (_sendFile)
+import Network.Socket.SendFile.FreeBSD (_sendFile, sendFileIter)
 
 sendFileMode :: String
 sendFileMode = "FREEBSD_SENDFILE"
 #endif
 
 #if defined(DARWIN_SENDFILE)
-import Network.Socket.SendFile.Darwin (_sendFile)
+import Network.Socket.SendFile.Darwin (_sendFile, sendFileIter)
 
 sendFileMode :: String
 sendFileMode = "DARWIN_SENDFILE"
@@ -176,16 +176,7 @@ sendFile'' outs inh off count =
        withFd inh $ \in_fd ->
          wrapSendFile' (\out_fd_ in_fd_ _blockSize_ off_ count_ -> _sendFile out_fd_ in_fd_ off_ count_)
                        out_fd in_fd count off count
-{-
-    do _ <- sendFileIterWith'' runIter outs inh count off count
-       return ()
 
-    do let out_fd = Fd (fdSocket outs)
-       withFd inp $ \in_fd ->
-         wrapSendFile' (\outs in_fd _blockSize off count -> sendFile outs in_fd off count)
-                       outs in_fd count off count
-
--}
 sendFileIterWith'' :: (IO Iter -> IO a) -> Socket -> Handle -> Integer -> Integer -> Integer -> IO a
 sendFileIterWith'' stepper outs inp blockSize off count =
     do let out_fd = Fd (fdSocket outs)
@@ -208,7 +199,6 @@ unsafeSendFileIterWith'' stepper outp inp blockSize off count =
        withFd outp $ \out_fd ->
          withFd inp $ \in_fd ->
              stepper $ wrapSendFile' sendFileIter out_fd in_fd blockSize off count
-
 
 -- The Fd should not be used after the action returns because the
 -- Handler may be garbage collected and than will cause the finalizer
@@ -292,9 +282,9 @@ unsafeSendFileIterWith' stepper outp infp blockSize offset count =
 -- | wraps sendFile' to check arguments
 wrapSendFile' :: Integral i => (a -> b -> i -> i -> i -> IO c) -> a -> b -> Integer -> Integer -> Integer -> IO c
 wrapSendFile' fun outp inp blockSize off count
-    | off       <  0 = error "SendFile - offset must be a positive integer"
+--    | count     == 0 = return () -- Send nothing -- why do the work? Also, Windows and FreeBSD treat '0' as 'send the whole file'.
     | count     <  0 = error "SendFile - count must be a positive integer"
-    | blockSize <= 0 = error "SendFile - blockSize was be a positive integer greater than 1"
---    | count == 0 = return () -- Send nothing -- why do the work? Also, Windows and FreeBSD treat '0' as 'send the whole file'.
+    | (count /= 0) && (blockSize <= 0) = error "SendFile - blockSize must be a positive integer greater than 1"
+    | off       <  0 = error "SendFile - offset must be a positive integer"
     | otherwise      = fun outp inp (fromIntegral blockSize) (fromIntegral off) (fromIntegral count)
 
