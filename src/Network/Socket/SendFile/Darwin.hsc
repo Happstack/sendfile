@@ -1,58 +1,79 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Darwin system-dependent code for 'sendfile'.
-module Network.Socket.SendFile.Darwin (_sendFile) where
+module Network.Socket.SendFile.Darwin (_sendFile, sendFileIter, sendfile) where
+
 import Data.Int (Int64)
-import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
+import Foreign.C.Error (eAGAIN, eINTR, getErrno, throwErrno)
 import Foreign.C.Types (CInt)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (peek, poke)
+import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd)
 import Control.Concurrent (threadWaitWrite)
 
-{-
-  This is based on Linux.hsc (from version 0.5), although the
-  calling convention for Darwin's sendfile() is closer to that
-  of FreeBSD.
--}
-
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
-_sendFile out_fd in_fd off count = do
-  alloca $ \pbytes -> do
-    rsendfile out_fd in_fd pbytes off count
+_sendFile out_fd in_fd off count = 
+    do _ <- runIter (sendFileIter out_fd in_fd count off count) -- set blockSize == count. ie. send it all if we can.
+       return ()
 
-rsendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> Int64 -> IO ()
-rsendfile _      _     _      _    0        = return ()
-rsendfile out_fd in_fd pbytes off remaining = do
-  let bytes = min remaining maxBytes
-  sbytes <- sendfile out_fd in_fd pbytes off bytes 0
-  rsendfile out_fd in_fd pbytes off (remaining - sbytes)
+-- | a way to send things in chunks
+sendFileIter :: Fd -- ^ file descriptor corresponding to network socket
+             -> Fd -- ^ file descriptor corresponding to file
+             -> Int64 -- ^ maximum number of bytes to send at once
+             -> Int64 -- ^ offset into file
+             -> Int64 -- ^ total number of bytes to send
+             -> IO Iter
+sendFileIter out_fd in_fd blockSize off remaining =
+    alloca $ \len -> 
+        sendFileIterI out_fd in_fd (min blockSize maxBytes) off remaining len
 
-{-
- Unlike the Linux implementation we track any re-sends due
- to getting eAGAIN. If this wasn't done then the call would
- appear to hang. The alternative would be to just 
-    return bytes
- but I am unclear whether there are occasions this may
- be wrong.
--}
+sendFileIterI :: Fd -- ^ file descriptor corresponding to network socket
+              -> Fd -- ^ file descriptor corresponding to file
+              -> Int64 -- ^ maximum number of bytes to send at once
+              -> Int64 -- ^ offset into file
+              -> Int64 -- ^ total number of bytes to send
+--              -> Ptr Int64 -- ^ sent bytes ptr
+              -> IO Iter
+sendFileIterI _out_fd _in_fd _blockSize _off  0         = return (Done 0)
+sendFileIterI  out_fd  in_fd  blockSize  off  remaining =
+    do let bytes = min remaining blockSize
+       (wouldBlock, nsent) <- alloca $ \len ->
+                                do poke len bytes
+                                   sendfileI out_fd in_fd off len
+       let cont = sendFileIterI out_fd in_fd blockSize (off + nsent) (remaining `safeMinus` nsent)
+       case wouldBlock of
+         True  -> return (WouldBlock (fromIntegral nsent) out_fd cont)
+         False -> return (Sent (fromIntegral nsent) cont)
 
-sendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> Int64 -> Int64 -> IO Int64
-sendfile out_fd in_fd pbytes off bytes ctr = do
-  poke pbytes bytes
-  -- Copying Linux implementation for thread synchronization,
-  -- is this sensible?
-  threadWaitWrite out_fd
-  status <- c_sendfile out_fd in_fd off pbytes
-  nsent <- peek pbytes
-  if status == 0
-    then return $ (fromIntegral nsent) + ctr
-    else do errno <- getErrno
-            if errno == eAGAIN
-              -- is it correct to reduce bytes by nsent here?
-              then let nremaining = max 0 (bytes - (fromIntegral nsent))
-                   in sendfile out_fd in_fd pbytes (off + nsent) nremaining (ctr + (fromIntegral nsent))
-              else throwErrno "Network.Socket.SendFile.Darwin"
+
+-- | low-level wrapper around sendfile
+-- non-blocking
+-- returns number of bytes written and if EAGAIN/EINTR
+-- does not call 'threadWaitWrite'
+sendfile :: Fd -> Fd -> Int64 -> Int64 -> IO (Bool, Int64)
+sendfile out_fd in_fd off count =
+    alloca $ \len ->
+        do poke len count
+           sendfileI out_fd in_fd off len
+
+-- NOTE: should we retry automatically on EINTR (but not EAGAIN)
+sendfileI :: Fd -> Fd -> Int64 -> Ptr Int64 -> IO (Bool, Int64)
+sendfileI out_fd in_fd off len = 
+    do status <- c_sendfile out_fd in_fd off len
+       if (status == 0)
+          then do nsent <- peek len
+                  return $ (False, nsent)
+          else do errno <- getErrno
+                  if (errno == eAGAIN) || (errno == eINTR)
+                   then do nsent <- peek len
+                           return (True, nsent)
+                   else throwErrno "Network.Socket.SendFile.Darwin.sendfileI"
+
+safeMinus :: (Ord a, Num a) => a -> a -> a
+safeMinus x y
+    | y >= x = 0
+    | otherwise = x - y
 
 -- max num of bytes in one send
 maxBytes :: Int64

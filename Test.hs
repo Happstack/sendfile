@@ -1,18 +1,19 @@
 {-# OPTIONS_GHC -Wall #-}
 -- [ required libs from hackage ]
 -- QuickCheck-2.1.0.1
--- test-framework-quickcheck-0.2.4
--- NOTE: do a 'runghc GenLargeFile.hs' first, it is needed for the test
+-- test-framework-quickcheck2
+-- test-framework-hunit
+-- NOTE: do a 'runhaskell GenLargeFile.hs' first, it is needed for the test
 import Control.Concurrent (forkIO)
 import Control.Exception (bracket, finally)
-import Data.ByteString.Char8 (append, drop, ByteString, hGet, hPut, length, pack, take)
+import Data.ByteString.Char8 (append, drop, ByteString, hGet, hGetNonBlocking, hPut, length, pack, take)
 import Prelude hiding (catch, drop, length, take)
 import Network.Socket.SendFile (sendFile, sendFile', sendFileMode, unsafeSendFile, unsafeSendFile')
 import Network.Socket.ByteString (recv, sendAll)
 import Network.Socket (Socket)
 import SocketPair (prop_HandlePairConnected, prop_SocketPairConnected, handlePair, socketPair, recvAll)
 import System.Directory (createDirectoryIfMissing, removeFile)
-import System.IO (BufferMode(..), {- IOMode(..), SeekMode(..), -} Handle, hClose, hFlush, hSetBuffering, {- hSeek , -} openBinaryTempFile{- , withBinaryFile -})
+import System.IO (BufferMode(..), IOMode(..), {- SeekMode(..), -} Handle, hClose, hFileSize, hFlush, hSetBuffering, {- hSeek , -} openBinaryTempFile{- , withBinaryFile -}, withFile)
 import qualified Test.HUnit as H
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -56,6 +57,7 @@ testWith spair hpair =
 --        , testProperty "Handle Position Ignored" (prop_UnsafeHandlePositionIgnored hpair NoBuffering)
         , testCase "Large Filesize Arrives" (test_UnsafeLargeFileSizeArrives hpair NoBuffering)
         ]
+
     , testGroup "unsafeSendFile' (buffered)"
         [ testProperty "Partial Payload Arrives" (prop_UnsafePartialPayloadArrives hpair (BlockBuffering Nothing))
         , testProperty "Partial Payload with Offset Arrives" (prop_UnsafePartialPayloadWithOffsetArrives hpair (BlockBuffering Nothing))
@@ -132,10 +134,11 @@ test_LargeFileSizeArrives :: (Socket, Socket) -> H.Assertion
 test_LargeFileSizeArrives (p1, p2) = do
     -- file is assumed to be 3gb, and is already created (use GenLargeFile.hs)
 --    withBinaryFile "large.txt" ReadMode $ \h -> do
-    forkIO (sendFile' p1 "large.txt" 0 largeLen)
+    largeLen <- withFile "large.txt" ReadMode $ hFileSize
+    _ <- forkIO (sendFile' p1 "large.txt" 0 largeLen)
     receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
     H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
-    where largeLen = 3 * 1024 * 1024 * 1024
+    where -- largeLen = 3 * 1024 * 1024 * 1024
           recvCountBytes _    0 = return 0
           recvCountBytes sock len = do
               recvLen <- fmap length (recv sock 4194304)
@@ -209,13 +212,14 @@ test_UnsafeLargeFileSizeArrives (p1, p2) bufMode = do
     hSetBuffering p1 bufMode
     -- file is assumed to be 3gb, and is already created (use GenLargeFile.hs)
 --    withBinaryFile "large.txt" ReadMode $ \h -> do
-    forkIO (unsafeSendFile' p1 "large.txt" 0 largeLen)
+    largeLen <- withFile "large.txt" ReadMode $ hFileSize
+    _ <- forkIO (unsafeSendFile' p1 "large.txt" 0 largeLen)
     receivedLen <- recvCountBytes p2 (fromIntegral largeLen)
     H.assertEqual "all bytes arrived" receivedLen (fromIntegral largeLen)
-    where largeLen = 3 * 1024 * 1024 * 1024
+    where -- largeLen = 3 * 1024 * 1024 * 1024
           recvCountBytes _    0 = return 0
           recvCountBytes h len = do
-              recvLen <- fmap length (hGet h 4194304)
+              recvLen <- fmap length (hGetNonBlocking h 4194304)
               fmap (recvLen +) (recvCountBytes h (len - recvLen))
 
 withTempFile :: ByteString -> (FilePath -> IO a) -> IO a

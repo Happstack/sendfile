@@ -22,12 +22,13 @@ flag portable
 library
     hs-source-dirs:  src
 
-    exposed-modules: Network.Socket.SendFile
+    exposed-modules: Network.Socket.SendFile, Network.Socket.SendFile.Iter, Network.Socket.SendFile.Internal
 
-    other-modules:   Network.Socket.SendFile.Internal
+--    other-modules:   
     
     build-depends:   base >= 3 && < 5,
-                     network >= 2 && < 3
+                     network >= 2 && < 3,
+                     unix
 
     ghc-options: -Wall
 

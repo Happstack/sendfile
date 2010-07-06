@@ -1,40 +1,77 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Linux system-dependent code for 'sendfile'.
-module Network.Socket.SendFile.Linux (_sendFile) where
+module Network.Socket.SendFile.Linux (_sendFile, sendFileIter, sendfile) where
 import Data.Int
 import Data.Word
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
-import Foreign.Storable(poke)
+import Foreign.Storable(peek, poke)
+import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd)
+import System.Posix.IO
 import Control.Concurrent (threadWaitWrite)
-
 #include <sys/sendfile.h>
 
+-- | automatically loop and send everything
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
-_sendFile out_fd in_fd off count = do
-    alloca $ \poff -> do
-    poke poff off
-    rsendfile out_fd in_fd poff count
+_sendFile out_fd in_fd off count = 
+    do _ <- runIter (sendFileIter out_fd in_fd count off count) -- set blockSize == count. ie. send it all if we can.
+       return ()
 
-rsendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO ()
-rsendfile _      _     _    0         = return ()
-rsendfile out_fd in_fd poff remaining = do
-    let bytes = min remaining maxBytes
-    sbytes <- sendfile out_fd in_fd poff bytes
-    rsendfile out_fd in_fd poff (remaining - sbytes)
-    
-sendfile :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO Int64
-sendfile out_fd in_fd poff bytes = do
-    threadWaitWrite out_fd
+-- | a way to send things in chunks
+sendFileIter :: Fd -- ^ file descriptor corresponding to network socket
+             -> Fd -- ^ file descriptor corresponding to file
+             -> Int64 -- ^ maximum number of bytes to send at once
+             -> Int64 -- ^ offset into file
+             -> Int64 -- ^ total number of bytes to send
+             -> IO Iter
+sendFileIter out_fd in_fd blockSize off remaining =
+--    alloca $ \poff -> 
+--        do poke poff off
+           sendFileIterI out_fd in_fd (min blockSize maxBytes) off remaining
+
+sendFileIterI :: Fd -- ^ file descriptor corresponding to network socket
+              -> Fd -- ^ file descriptor corresponding to file
+              -> Int64 -- ^ maximum number of bytes to send at once
+              -> Int64 -- ^ offset into file
+              -> Int64     -- ^ total number of bytes to send
+              -> IO Iter
+sendFileIterI _out_fd _in_fd _blockSize _off  0         = return (Done 0)
+sendFileIterI  out_fd  in_fd  blockSize  off  remaining =
+    do let bytes = min remaining blockSize
+       (wouldBlock, sbytes) <- sendfile out_fd in_fd off bytes
+       let cont = sendFileIterI out_fd in_fd blockSize (off + sbytes) (remaining `safeMinus` sbytes)
+       case wouldBlock of
+         True  -> return (WouldBlock sbytes out_fd cont)
+         False -> return (Sent sbytes cont)
+
+-- | low-level wrapper around sendfile
+-- non-blocking
+-- returns number of bytes written and whether the fd would block (aka, EAGAIN)
+-- does not call 'threadWaitWrite'
+sendfile :: Fd -> Fd -> Int64 -> Int64 -> IO (Bool, Int64)
+sendfile out_fd in_fd off bytes = 
+    alloca $ \poff -> 
+        do poke poff off
+           sendfileI out_fd in_fd poff bytes
+
+-- low-level wrapper around linux sendfile
+sendfileI :: Fd -> Fd -> Ptr Int64 -> Int64 -> IO (Bool, Int64)
+sendfileI out_fd in_fd poff bytes = do
     sbytes <- c_sendfile out_fd in_fd poff (fromIntegral bytes)
     if sbytes <= -1
       then do errno <- getErrno
               if errno == eAGAIN
-                then sendfile out_fd in_fd poff bytes
-                else throwErrno "Network.Socket.SendFile.Linux"
-      else return (fromIntegral sbytes)
+                then return (True, 0)
+                else throwErrno "Network.Socket.SendFile.Linux.sendfileI"
+      else return (False, fromIntegral sbytes)
+
+safeMinus :: (Ord a, Num a) => a -> a -> a
+safeMinus x y
+    | y > x = error $ "y > x " ++ show (y,x)
+    | otherwise = x - y
+
 
 -- max num of bytes in one send
 maxBytes :: Int64
