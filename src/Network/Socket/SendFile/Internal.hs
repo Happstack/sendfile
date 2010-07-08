@@ -46,7 +46,7 @@ import qualified GHC.Handle
 #endif
 
 #if defined(WIN32_SENDFILE)
-import Network.Socket.SendFile.Win32 (_sendFile)
+import Network.Socket.SendFile.Win32 (_sendFile, sendFileIter)
 
 sendFileMode :: String
 sendFileMode = "WIN32_SENDFILE"
@@ -84,13 +84,13 @@ sendFileIterWith'' stepper =
            stepper (sendFileIterS outs inp blockSize {- off -} count Nothing)
 
 sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO ()
-sendFile'' outs inh off count = 
+sendFile'' outs inh off count =
     do _ <- sendFileIterWith'' runIter outs inh count off count
        return ()
 
 unsafeSendFileIterWith'' :: (IO Iter -> IO a) -> Handle -> Handle -> Integer -> Integer -> Integer -> IO a
 unsafeSendFileIterWith'' stepper =
-    wrapSendFile' $ \outp inp blockSize off count -> 
+    wrapSendFile' $ \outp inp blockSize off count ->
         do hSeek inp AbsoluteSeek off
            a <- stepper (unsafeSendFileIter outp inp blockSize count Nothing)
            hFlush outp
@@ -98,7 +98,7 @@ unsafeSendFileIterWith'' stepper =
 
 unsafeSendFile'' :: Handle -> Handle -> Integer -> Integer -> IO ()
 unsafeSendFile'' outh inh off count =
-    do _ <- unsafeSendFileIterWith'' runIter outh inh count off count 
+    do _ <- unsafeSendFileIterWith'' runIter outh inh count off count
        return ()
 
 sendFileIterS :: Socket  -- ^ output network socket
@@ -116,19 +116,19 @@ sendFileIterS socket   inh  blockSize {- off -} remaining mBuf =
                   then Just (C.drop nsent buf)
                   else Nothing
        let cont = sendFileIterS socket inh blockSize {- (off + (fromIntegral nsent)) -} (remaining `safeMinus` (fromIntegral nsent)) leftOver
-       if nsent < (length buf) 
+       if nsent < (length buf)
           then return (WouldBlock (fromIntegral nsent) (Fd $ fdSocket socket) cont)
           else return (Sent       (fromIntegral nsent)                        cont)
     where
    nextBlock =
-          case mBuf of 
+          case mBuf of
             (Just b) -> return b
-            Nothing -> 
+            Nothing ->
                 do eof <- hIsEOF inh
                    if eof
                     then ioError (mkIOError eofErrorType ("Reached EOF but was hoping to read " ++ show remaining ++ " more byte(s).") (Just inh) Nothing)
                     else do let bytes = min 32768 (min blockSize remaining)
-                            hGet inh (fromIntegral bytes) -- we could check that we got fewer bytes than requested here, but we will send what we got and catch the EOF next time around             
+                            hGet inh (fromIntegral bytes) -- we could check that we got fewer bytes than requested here, but we will send what we got and catch the EOF next time around
 
 safeMinus :: (Ord a, Num a) => a -> a -> a
 safeMinus x y
@@ -155,22 +155,22 @@ unsafeSendFileIter outh inh blockSize remaining mBuf =
                   else Nothing
 -}
            cont = unsafeSendFileIter outh inh blockSize {- (off + (fromIntegral nsent)) -} (remaining - (fromIntegral nsent)) Nothing
-       if nsent < (length buf) 
+       if nsent < (length buf)
           then do error "unsafeSendFileIter: internal error" -- return (WouldBlock (fromIntegral nsent) (Fd $ fdSocket socket) cont)
           else return (Sent (fromIntegral nsent) cont)
     where
       nextBlock =
-          case mBuf of 
+          case mBuf of
             (Just b) -> return b
-            Nothing -> 
+            Nothing ->
                 do eof <- hIsEOF inh
                    if eof
                     then ioError (mkIOError eofErrorType ("Reached EOF but was hoping to read " ++ show remaining ++ " more byte(s).") (Just inh) Nothing)
                     else do let bytes = min 32768 (min blockSize remaining)
                             hGet inh (fromIntegral bytes) -- we could check that we got fewer bytes than requested here, but we will send what we got and catch the EOF next time around
-      
+
 #else
-sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO () 
+sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile'' outs inh off count =
     do let out_fd = Fd (fdSocket outs)
        withFd inh $ \in_fd ->
@@ -213,7 +213,7 @@ withFd h f = withHandle_ "withFd" h $ \ Handle__{..} -> do
                         "handle is not a file descriptor")
     Just fd -> f (Fd (fromIntegral (FD.fdFD fd)))
 #else
-withFd h f = 
+withFd h f =
     withHandle_ "withFd" h $ \ h_ ->
       f (Fd (fromIntegral (haFD h_)))
 #endif
@@ -223,7 +223,7 @@ withFd h f =
 #endif
 
 sendFile :: Socket -> FilePath -> IO ()
-sendFile outs infp = 
+sendFile outs infp =
     withBinaryFile infp ReadMode $ \inp -> do
       count <- hFileSize inp
       sendFile'' outs inp 0 count
@@ -245,7 +245,7 @@ sendFileIterWith' stepper outs infp blockSize offset count =
         sendFileIterWith'' stepper outs inp blockSize offset count
 
 unsafeSendFile :: Handle -> FilePath -> IO ()
-unsafeSendFile outp infp = 
+unsafeSendFile outp infp =
     withBinaryFile infp ReadMode $ \inp -> do
       count <- hFileSize inp
       unsafeSendFile'' outp inp 0 count
@@ -255,7 +255,7 @@ unsafeSendFileIterWith stepper outp infp blockSize =
     withBinaryFile infp ReadMode $ \inp -> do
       count <- hFileSize inp
       unsafeSendFileIterWith'' stepper outp inp blockSize 0 count
-    
+
 
 unsafeSendFile'
     :: Handle    -- ^ The output handle
@@ -278,7 +278,7 @@ unsafeSendFileIterWith'
 unsafeSendFileIterWith' stepper outp infp blockSize offset count =
     withBinaryFile infp ReadMode $ \inp -> do
       unsafeSendFileIterWith'' stepper outp inp blockSize offset count
-          
+
 -- | wraps sendFile' to check arguments
 wrapSendFile' :: Integral i => (a -> b -> i -> i -> i -> IO c) -> a -> b -> Integer -> Integer -> Integer -> IO c
 wrapSendFile' fun outp inp blockSize off count
