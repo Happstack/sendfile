@@ -13,7 +13,7 @@ module Network.Socket.SendFile.Internal (
 #if defined(PORTABLE_SENDFILE)
 import Data.ByteString.Char8 (hGet, hPut, length, ByteString)
 import qualified Data.ByteString.Char8 as C
-import Network.Socket.ByteString (send, sendAll)
+import Network.Socket.ByteString (send)
 import Network.Socket (Socket(..), fdSocket)
 import Network.Socket.SendFile.Iter (runIter)
 import Prelude hiding (length)
@@ -23,11 +23,6 @@ import System.Posix.Types (Fd(..))
 import Network.Socket (Socket(..), fdSocket)
 import System.IO (Handle, IOMode(..), hFileSize, withBinaryFile)
 import System.Posix.Types (Fd(..))
-#endif
-
-import Network.Socket.SendFile.Iter (Iter(..))
-
-
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 611
 import GHC.IO.Handle.Internals (withHandle_)
@@ -36,14 +31,22 @@ import qualified GHC.IO.FD as FD
 -- import qualified GHC.IO.Handle.FD as FD
 import GHC.IO.Exception
 import Data.Typeable (cast)
-import System.IO (hFlush)
-import System.IO.Error
 #else
 import GHC.IOBase
 import GHC.Handle hiding (fdToHandle)
 import qualified GHC.Handle
 #endif
 #endif
+#endif
+
+import Network.Socket.SendFile.Iter (Iter(..))
+import System.IO (hFlush)
+
+#ifdef __GLASGOW_HASKELL__
+#if __GLASGOW_HASKELL__ >= 611
+import System.IO.Error
+#endif
+#endif 
 
 #if defined(WIN32_SENDFILE)
 import Network.Socket.SendFile.Win32 (_sendFile, sendFileIter)
@@ -143,8 +146,8 @@ unsafeSendFileIter :: Handle  -- ^ output handle
                    -> Integer -- ^ total number of bytes to send
                    -> Maybe ByteString
                    -> IO Iter
-unsafeSendFileIter outh inh blockSize 0         mBuf = return (Done 0)
-unsafeSendFileIter outh inh blockSize remaining mBuf =
+unsafeSendFileIter _outh _inh _blockSize 0         _mBuf = return (Done 0)
+unsafeSendFileIter  outh  inh  blockSize remaining  mBuf =
     do buf <- nextBlock
        hPut outh buf -- eventually this should use a non-blocking version of hPut
        let nsent = length buf

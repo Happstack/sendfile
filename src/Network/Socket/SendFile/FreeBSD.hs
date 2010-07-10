@@ -1,7 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | FreeBSD system-dependent code for 'sendfile'.
 module Network.Socket.SendFile.FreeBSD (_sendFile, sendFileIter, sendfile) where
-import Control.Concurrent (threadWaitWrite)
 import Data.Int (Int64)
 import Foreign.C.Error (eAGAIN, eINTR, getErrno, throwErrno)
 import Foreign.C.Types (CInt, CSize)
