@@ -1,16 +1,15 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- | Linux system-dependent code for 'sendfile'.
 module Network.Socket.SendFile.Linux (_sendFile, sendFileIter, sendfile) where
-import Data.Int
-import Data.Word
+
+import Data.Int (Int32, Int64)
+import Data.Word (Word32)
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
-import Foreign.Storable(peek, poke)
+import Foreign.Storable(poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd)
-import System.Posix.IO
-import Control.Concurrent (threadWaitWrite)
 #include <sys/sendfile.h>
 
 -- | automatically loop and send everything
