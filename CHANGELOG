@@ -1,3 +1,8 @@
+  sendfile-0.7.0
+--------------------------------------------------------------------------------
+  * Added API calls which allow you to hook into sendfile loop so you can
+    tickle timeouts, wait on block fd's, and more.
+
   sendfile-0.6.2
 --------------------------------------------------------------------------------
   * Fix error on Darwin where offset was not udpated after EAGAIN
