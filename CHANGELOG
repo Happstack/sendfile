@@ -1,3 +1,7 @@
+  sendfile-0.7.1
+--------------------------------------------------------------------------------
+  * Don't expose .Internal
+
   sendfile-0.7.0
 --------------------------------------------------------------------------------
   * Added API calls which allow you to hook into sendfile loop so you can

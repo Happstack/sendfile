@@ -1,5 +1,5 @@
 name:          sendfile
-version:       0.7.0
+version:       0.7.1
 stability:     provisional
 synopsis:      A portable sendfile library
 description:   A library which exposes zero-copy sendfile functionality in a portable way. If a platform does not support sendfile, a fallback implementation in haskell is provided.
@@ -22,9 +22,9 @@ flag portable
 library
     hs-source-dirs:  src
 
-    exposed-modules: Network.Socket.SendFile, Network.Socket.SendFile.Iter, Network.Socket.SendFile.Internal
+    exposed-modules: Network.Socket.SendFile, Network.Socket.SendFile.Iter
 
---    other-modules:
+    other-modules:   Network.Socket.SendFile.Internal
 
     build-depends:   base >= 3 && < 5,
                      network >= 2 && < 3
