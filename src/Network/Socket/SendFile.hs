@@ -15,6 +15,7 @@ module Network.Socket.SendFile (
     sendFile',
     sendFileIterWith',
     -- * Unsafe functions
+    -- | These functions are unsafe simply because there is no guarantee that the 'Handle' used for output is actually bound to a 'Socket'. If it is not, it will result in a runtime error.
     unsafeSendFile,
     unsafeSendFileIterWith,
     unsafeSendFile',
@@ -43,6 +44,8 @@ sendFile
 sendFile = Network.Socket.SendFile.Internal.sendFile
 
 -- | The simplest interface. Simply give it an output `Socket` and the `FilePath` to the input file.
+--
+-- This variant takes a function to drive the iteration loop. See 'Iter' for more information.
 sendFileIterWith
     :: (IO Iter -> IO a)
     -> Socket    -- ^ The output socket
@@ -61,6 +64,8 @@ sendFile'
 sendFile' = Network.Socket.SendFile.Internal.sendFile'
 
 -- | A more powerful interface than sendFile which accepts a starting offset, and the bytecount to send; the offset and the count must be a positive integer. The initial position of the input file handle matters not since the offset is absolute, and the final position may be different depending on the platform -- no assumptions can be made.
+--
+-- This variant takes a function to drive the iteration loop. See 'Iter' for more information.
 sendFileIterWith'
     :: (IO Iter -> IO a)
     -> Socket    -- ^ The output socket
@@ -79,6 +84,8 @@ unsafeSendFile
 unsafeSendFile = Network.Socket.SendFile.Internal.unsafeSendFile
 
 -- | The unsafe version of sendFile which accepts a `Handle` instead of a `Socket` for the output.  It will flush the output handle before sending any file data.
+--
+-- This variant takes a function to drive the iteration loop. See 'Iter' for more information.
 unsafeSendFileIterWith
     :: (IO Iter -> IO a)
     -> Handle    -- ^ The output handle
@@ -97,6 +104,8 @@ unsafeSendFile'
 unsafeSendFile' = Network.Socket.SendFile.Internal.unsafeSendFile'
 
 -- | The unsafe version of sendFile' which accepts a `Handle` instead of a `Socket` for the output. It will flush the output handle before sending any file data.
+--
+-- This variant takes a function to drive the iteration loop. See 'Iter' for more information.
 unsafeSendFileIterWith'
     :: (IO Iter -> IO a)
     -> Handle    -- ^ The output handle
@@ -108,8 +117,8 @@ unsafeSendFileIterWith'
 unsafeSendFileIterWith' = Network.Socket.SendFile.Internal.unsafeSendFileIterWith'
 
 -- | Returns the mode that sendfile was compiled with. Mainly for debugging use.
--- | Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE',
--- | 'DARWIN_SENDFILE', and 'PORTABLE_SENDFILE'.
+-- Possible values are 'WIN32_SENDFILE', 'LINUX_SENDFILE', 'FREEBSD_SENDFILE',
+-- 'DARWIN_SENDFILE', and 'PORTABLE_SENDFILE'.
 sendFileMode :: String -- ^ The mode that sendfile was compiled with
 sendFileMode = Network.Socket.SendFile.Internal.sendFileMode
 
