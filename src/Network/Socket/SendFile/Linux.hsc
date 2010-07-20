@@ -3,7 +3,7 @@
 module Network.Socket.SendFile.Linux (_sendFile, sendFileIter, sendfile) where
 
 import Data.Int (Int32, Int64)
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
