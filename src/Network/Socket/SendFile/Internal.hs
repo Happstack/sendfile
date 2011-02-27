@@ -4,6 +4,8 @@ module Network.Socket.SendFile.Internal (
     sendFileIterWith,
     sendFile',
     sendFileIterWith',
+    sendFile'',
+    sendFileIterWith'',
     unsafeSendFile,
     unsafeSendFileIterWith,
     unsafeSendFile',

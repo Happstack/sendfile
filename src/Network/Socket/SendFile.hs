@@ -57,7 +57,7 @@ sendFileIterWith = Network.Socket.SendFile.Internal.sendFileIterWith
 -- | A more powerful interface than sendFile which accepts a starting offset, and the bytecount to send; the offset and the count must be a positive integer. The initial position of the input file handle matters not since the offset is absolute, and the final position may be different depending on the platform -- no assumptions can be made.
 sendFile'
     :: Socket    -- ^ The output socket
-    -> FilePath    -- ^ The input file handle
+    -> FilePath    -- ^ The input file path
     -> Offset    -- ^ The offset to start at
     -> ByteCount -- ^ The number of bytes to send
     -> IO ()
@@ -69,7 +69,7 @@ sendFile' = Network.Socket.SendFile.Internal.sendFile'
 sendFileIterWith'
     :: (IO Iter -> IO a)
     -> Socket    -- ^ The output socket
-    -> FilePath    -- ^ The input file handle
+    -> FilePath    -- ^ The input file path
     -> ByteCount -- ^ Maximum bytes to send per block (may send less)
     -> Offset    -- ^ The offset to start at
     -> ByteCount -- ^ The number of bytes to send
