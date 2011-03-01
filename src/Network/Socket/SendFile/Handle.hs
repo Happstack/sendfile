@@ -1,7 +1,5 @@
 -- | Handle-based versions of some of the functions exported by
--- Network.Socket.SendFile.  None of the unsafe functions are exposed here.
---
-
+-- Network.Socket.SendFile. 
 module Network.Socket.SendFile.Handle (
   ByteCount,
   Offset,
@@ -22,6 +20,9 @@ import Network.Socket (Socket)
 
 -- | Simple sendFile - give it a Socket and a Handle, and it sends the entire
 -- file through the socket.
+--
+-- WARNING: This function will raise 'IOError' 'IllegalOperation'
+-- if the 'Handle' is not for an 'Fd'.
 sendFile
   :: Socket
   -> Handle
@@ -33,6 +34,9 @@ sendFile outs inh = do
 -- | A more interactive version of sendFile, which accepts a callback function
 -- in addition to the socket and handle.  The callback will be called for each
 -- chunk of data the sendFileIterWith function acts on.
+--
+-- WARNING: This function will raise 'IOError' 'IllegalOperation'
+-- if the 'Handle' is not for an 'Fd'.
 sendFileIterWith
   :: (IO Iter -> IO a)
   -> Socket
@@ -45,6 +49,9 @@ sendFileIterWith stepper outs inh blockSize = do
 
 -- | A sendFile that allows the user to send a subset of the file associated
 -- with the given handle.
+--
+-- WARNING: This function will raise 'IOError' 'IllegalOperation'
+-- if the 'Handle' is not for an 'Fd'.
 sendFile'
   :: Socket
   -> Handle
@@ -55,6 +62,9 @@ sendFile' = Internal.sendFile''
 
 -- | A more powerful version of sendFileIterWith, which allows the sending of a
 -- subset of the given file.
+--
+-- WARNING: This function will raise 'IOError' 'IllegalOperation'
+-- if the 'Handle' is not for an 'Fd'.
 sendFileIterWith'
   :: (IO Iter -> IO a)
   -> Socket
@@ -64,4 +74,3 @@ sendFileIterWith'
   -> ByteCount
   -> IO a
 sendFileIterWith' = Internal.sendFileIterWith''
-
