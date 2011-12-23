@@ -10,6 +10,7 @@ import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (peek, poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd)
+#include <stdio.h>
 
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
 _sendFile out_fd in_fd off count = 
