@@ -2,7 +2,7 @@
 -- | Linux system-dependent code for 'sendfile'.
 module Network.Socket.SendFile.Linux (_sendFile, sendFileIter, sendfile) where
 
-import Data.Int (Int32, Int64)
+import Data.Int (Int32, Int64)    -- Int64 is imported on 64-bit systems
 import Data.Word (Word32, Word64) -- Word64 is imported on 64-bit systems
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
