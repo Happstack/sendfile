@@ -66,7 +66,7 @@ sendfileI out_fd in_fd poff bytes = do
                 else throwErrno "Network.Socket.SendFile.Linux.sendfileI"
       else return (False, fromIntegral sbytes)
 
-safeMinus :: (Ord a, Num a) => a -> a -> a
+safeMinus :: (Ord a, Num a, Show a) => a -> a -> a
 safeMinus x y
     | y > x = error $ "y > x " ++ show (y,x)
     | otherwise = x - y
