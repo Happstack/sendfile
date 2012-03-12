@@ -4,12 +4,13 @@ module Network.Socket.SendFile.Linux (_sendFile, sendFileIter, sendfile) where
 
 import Data.Int (Int32, Int64)    -- Int64 is imported on 64-bit systems
 import Data.Word (Word32, Word64) -- Word64 is imported on 64-bit systems
+import Foreign.C (CInt(..))
 import Foreign.C.Error (eAGAIN, getErrno, throwErrno)
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable(poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
-import System.Posix.Types (Fd)
+import System.Posix.Types (Fd(..))
 #include <sys/sendfile.h>
 
 -- | automatically loop and send everything
