@@ -12,6 +12,7 @@ import Foreign.Storable(poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
 import System.Posix.Types (Fd(..))
 #include <sys/sendfile.h>
+#include <stdio.h>
 
 -- | automatically loop and send everything
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
@@ -79,5 +80,5 @@ maxBytes = fromIntegral (maxBound :: (#type ssize_t))
 
 -- sendfile64 gives LFS support
 foreign import ccall unsafe "sendfile64" c_sendfile
-    :: Fd -> Fd -> Ptr (#type off_t) -> (#type size_t) -> IO (#type ssize_t)
+    :: Fd -> Fd -> Ptr (#type off64_t) -> (#type size_t) -> IO (#type ssize_t)
 

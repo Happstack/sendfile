@@ -43,7 +43,7 @@ library
       other-modules: Network.Socket.SendFile.Win32
     else
       if os(linux) && !flag(portable)
-        cpp-options: -DLINUX_SENDFILE
+        cpp-options: -DLINUX_SENDFILE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE.
         other-modules: Network.Socket.SendFile.Linux
       else
         if os(freebsd) && !flag(portable)
