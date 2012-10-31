@@ -4,16 +4,16 @@ module Network.Socket.SendFile.Darwin (_sendFile, sendFileIter, sendfile) where
 
 import Data.Int (Int64)
 import Foreign.C.Error (eAGAIN, eINTR, getErrno, throwErrno)
-import Foreign.C.Types (CInt)
+import Foreign.C.Types (CInt(..))
 import Foreign.Marshal (alloca)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (peek, poke)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
-import System.Posix.Types (Fd)
+import System.Posix.Types (Fd(..))
 #include <stdio.h>
 
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
-_sendFile out_fd in_fd off count = 
+_sendFile out_fd in_fd off count =
     do _ <- runIter (sendFileIter out_fd in_fd count off count) -- set blockSize == count. ie. send it all if we can.
        return ()
 
@@ -58,7 +58,7 @@ sendfile out_fd in_fd off count =
 
 -- NOTE: should we retry automatically on EINTR (but not EAGAIN)
 sendfileI :: Fd -> Fd -> Int64 -> Ptr Int64 -> IO (Bool, Int64)
-sendfileI out_fd in_fd off len = 
+sendfileI out_fd in_fd off len =
     do status <- c_sendfile out_fd in_fd off len
        if (status == 0)
           then do nsent <- peek len

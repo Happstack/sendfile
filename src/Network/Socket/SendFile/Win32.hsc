@@ -4,12 +4,12 @@ module Network.Socket.SendFile.Win32 (_sendFile, sendFileIter) where
 import Data.Bits ((.|.))
 import Data.Int
 import Foreign.C.Error (throwErrnoIf)
-import Foreign.C.Types (CInt)
+import Foreign.C.Types (CInt(..))
 import Foreign.Marshal.Alloc (alloca)
 import Foreign.Ptr (IntPtr, Ptr, intPtrToPtr, nullPtr)
 import Foreign.Storable (peek)
 import Network.Socket.SendFile.Iter (Iter(..),runIter)
-import System.Posix.Types (Fd)
+import System.Posix.Types (Fd(..))
 import System.Win32.Types (DWORD, HANDLE, failIfZero)
 
 #include <windows.h>
