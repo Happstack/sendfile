@@ -3,16 +3,16 @@
 module Network.Socket.SendFile.FreeBSD (_sendFile, sendFileIter, sendfile) where
 import Data.Int (Int64)
 import Foreign.C.Error (eAGAIN, eINTR, getErrno, throwErrno)
-import Foreign.C.Types (CInt, CSize)
+import Foreign.C.Types (CInt(..), CSize(..))
 import Foreign.Marshal.Alloc (alloca)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (peek)
 import Network.Socket.SendFile.Iter (Iter(..), runIter)
-import System.Posix.Types (COff, Fd)
+import System.Posix.Types (COff(..), Fd(..))
 
 -- | automatically loop and send everything
 _sendFile :: Fd -> Fd -> Int64 -> Int64 -> IO ()
-_sendFile out_fd in_fd off count = 
+_sendFile out_fd in_fd off count =
     do _ <- runIter (sendFileIter out_fd in_fd (fromIntegral count) (fromIntegral off) (fromIntegral count)) -- set blockSize == count. ie. send it all if we can.
        return ()
 
@@ -58,7 +58,7 @@ sendfileI out_fd in_fd off count sbytes =
           then do nsent <- peek sbytes
                   return (False, nsent)
           else do errno <- getErrno
-                  if (errno == eAGAIN) || (errno == eINTR) 
+                  if (errno == eAGAIN) || (errno == eINTR)
                    then do nsent <- peek sbytes
                            return (True, nsent)
                    else throwErrno "Network.Socket.SendFile.FreeBSD.sendfileI"
