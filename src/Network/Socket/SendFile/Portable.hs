@@ -75,7 +75,12 @@ sendFileIterS socket   inh  blockSize {- off -} remaining mBuf =
                   else Nothing
        let cont = sendFileIterS socket inh blockSize {- (off + (fromIntegral nsent)) -} (remaining `safeMinus` (fromIntegral nsent)) leftOver
        if nsent < (length buf)
+#if MIN_VERSION_network(3,0,0)
+          then do fd <- fdSocket socket
+                  return (WouldBlock (fromIntegral nsent) (Fd fd) cont)
+#else
           then return (WouldBlock (fromIntegral nsent) (Fd $ fdSocket socket) cont)
+#endif
           else return (Sent       (fromIntegral nsent)                        cont)
     where
    nextBlock =

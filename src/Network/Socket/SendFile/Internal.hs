@@ -77,14 +77,22 @@ sendFileMode = "DARWIN_SENDFILE"
 #else
 sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile'' outs inh off count =
+#if MIN_VERSION_network(3,0,0)
+    do out_fd <- Fd <$> (fdSocket outs)
+#else
     do let out_fd = Fd (fdSocket outs)
+#endif
        withFd inh $ \in_fd ->
          wrapSendFile' (\out_fd_ in_fd_ _blockSize_ off_ count_ -> _sendFile out_fd_ in_fd_ off_ count_)
                        out_fd in_fd count off count
 
 sendFileIterWith'' :: (IO Iter -> IO a) -> Socket -> Handle -> Integer -> Integer -> Integer -> IO a
 sendFileIterWith'' stepper outs inp blockSize off count =
+#if MIN_VERSION_network(3,0,0)
+    do out_fd <- Fd <$> (fdSocket outs)
+#else
     do let out_fd = Fd (fdSocket outs)
+#endif
        withFd inp $ \in_fd ->
          stepper $ wrapSendFile' sendFileIter out_fd in_fd blockSize off count
 
