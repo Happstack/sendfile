@@ -78,7 +78,7 @@ sendFileMode = "DARWIN_SENDFILE"
 sendFile'' :: Socket -> Handle -> Integer -> Integer -> IO ()
 sendFile'' outs inh off count =
 #if MIN_VERSION_network(3,0,0)
-    do out_fd <- Fd <$> (fdSocket outs)
+    do out_fd <- fmap Fd (fdSocket outs)
 #else
     do let out_fd = Fd (fdSocket outs)
 #endif
@@ -89,7 +89,7 @@ sendFile'' outs inh off count =
 sendFileIterWith'' :: (IO Iter -> IO a) -> Socket -> Handle -> Integer -> Integer -> Integer -> IO a
 sendFileIterWith'' stepper outs inp blockSize off count =
 #if MIN_VERSION_network(3,0,0)
-    do out_fd <- Fd <$> (fdSocket outs)
+    do out_fd <- fmap Fd (fdSocket outs)
 #else
     do let out_fd = Fd (fdSocket outs)
 #endif
