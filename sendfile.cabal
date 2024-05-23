@@ -46,7 +46,7 @@ library
 
     build-depends:   base       >= 3       && < 5,
                      bytestring >= 0.9.1.4 && < 0.13,
-                     network    >= 2       && < 3.2
+                     network    >= 2       && < 3.3
 
     ghc-options: -Wall
 
