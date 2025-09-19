@@ -20,7 +20,9 @@ import Network.Socket (fdSocket)
 import Network.Socket.SendFile.Util
 import System.Posix.Types (Fd(..))
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 611
+#if __GLASGOW_HASKELL__ >= 915
+import System.IO.OS (withFileDescriptorReadingBiasedRaw)
+#elif __GLASGOW_HASKELL__ >= 611
 import GHC.IO.Handle.Internals (withHandle_)
 import GHC.IO.Handle.Types (Handle__(..))
 import qualified GHC.IO.FD as FD
@@ -39,7 +41,7 @@ import Network.Socket (Socket)
 import Network.Socket.SendFile.Iter (Iter(..))
 import System.IO (Handle, IOMode(..), hFileSize, hFlush, withBinaryFile)
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 611
+#if __GLASGOW_HASKELL__ >= 611 && __GLASGOW_HASKELL__ < 915
 import System.IO.Error
 #endif
 #endif 
@@ -118,7 +120,9 @@ unsafeSendFileIterWith'' stepper outp inp blockSize off count =
 -- to close the fd.
 withFd :: Handle -> (Fd -> IO a) -> IO a
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 611
+#if __GLASGOW_HASKELL__ >= 915
+withFd h f = withFileDescriptorReadingBiasedRaw h $ f . Fd
+#elif __GLASGOW_HASKELL__ >= 611
 withFd h f = withHandle_ "withFd" h $ \ Handle__{..} -> do
   case cast haDevice of
     Nothing -> ioError (ioeSetErrorString (mkIOError IllegalOperation
