@@ -79,6 +79,6 @@ maxBytes :: Int64
 maxBytes = fromIntegral (maxBound :: (#type ssize_t))
 
 -- sendfile64 gives LFS support
-foreign import ccall unsafe "sendfile64" c_sendfile
+foreign import ccall unsafe "sendfile" c_sendfile
     :: Fd -> Fd -> Ptr (#type off64_t) -> (#type size_t) -> IO (#type ssize_t)
 
